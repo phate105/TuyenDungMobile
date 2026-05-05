@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   companyLogoText: {
     color: COLORS.surface,
     fontSize: 36,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   companyLogoImage: {
     height: "82%",
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   companyName: {
     color: COLORS.text,
     fontSize: 24,
-    fontWeight: "900",
+    fontWeight: "700",
     lineHeight: 31,
     textAlign: "center",
   },
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: COLORS.action,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   tabLine: {
     backgroundColor: "transparent",
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: COLORS.text,
     fontSize: 22,
-    fontWeight: "900",
+    fontWeight: "700",
     lineHeight: 29,
   },
   descriptionText: {

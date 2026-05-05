@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: COLORS.text,
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "600",
     paddingHorizontal: 16,
     paddingTop: 16,
   },

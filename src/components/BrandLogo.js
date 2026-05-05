@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     color: COLORS.surface,
     fontSize: 19,
     fontStyle: "italic",
-    fontWeight: "900",
+    fontWeight: "700",
     textAlign: "center",
   },
   compactText: {

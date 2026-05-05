@@ -99,7 +99,7 @@ export default function ExploreScreen({ navigation, user }) {
             onPress={() => navigation.navigate("Search")}
             style={styles.searchBox}
           >
-            <Ionicons color={COLORS.muted} name="search-outline" size={19} />
+            <Ionicons color="#000000" name="search-outline" size={20} />
             <Text style={styles.searchText}>Tìm kiếm công việc tại đây</Text>
           </TouchableOpacity>
 
@@ -118,7 +118,7 @@ export default function ExploreScreen({ navigation, user }) {
 
       {loading ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator color={COLORS.brand} />
+          <ActivityIndicator color={COLORS.primary} />
           <Text style={styles.mutedText}>Đang tải việc làm...</Text>
         </View>
       ) : error ? (
@@ -148,14 +148,7 @@ export default function ExploreScreen({ navigation, user }) {
               />
             ) : null
           }
-          ListHeaderComponent={
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Tất cả ngành nghề</Text>
-              <Text style={styles.pageInfo}>
-                Trang {page}/{totalPages} · {totalJobs} việc làm
-              </Text>
-            </View>
-          }
+
           maxToRenderPerBatch={8}
           renderItem={renderJob}
           showsVerticalScrollIndicator={false}
@@ -179,8 +172,7 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
         onPress={onPrevious}
         style={[styles.pageButton, !canGoPrevious && styles.pageButtonDisabled]}
       >
-        <Ionicons color={canGoPrevious ? COLORS.text : COLORS.mutedLight} name="chevron-back" size={18} />
-        <Text style={[styles.pageButtonText, !canGoPrevious && styles.pageButtonTextDisabled]}>Trước</Text>
+        <Ionicons color={COLORS.primary} name="arrow-back" size={24} />
       </TouchableOpacity>
 
       <Text style={styles.pageNumber}>{page}/{totalPages}</Text>
@@ -191,8 +183,7 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
         onPress={onNext}
         style={[styles.pageButton, !canGoNext && styles.pageButtonDisabled]}
       >
-        <Text style={[styles.pageButtonText, !canGoNext && styles.pageButtonTextDisabled]}>Sau</Text>
-        <Ionicons color={canGoNext ? COLORS.text : COLORS.mutedLight} name="chevron-forward" size={18} />
+        <Ionicons color={COLORS.primary} name="arrow-forward" size={24} />
       </TouchableOpacity>
     </View>
   );
@@ -200,13 +191,13 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
   },
   screenContent: {
     paddingBottom: 0,
   },
   hero: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderBottomColor: COLORS.border,
     borderBottomWidth: 1,
     marginHorizontal: -18,
@@ -222,21 +213,21 @@ const styles = StyleSheet.create({
   },
   searchBox: {
     alignItems: "center",
-    backgroundColor: COLORS.surfaceMuted,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 22,
     borderWidth: 1,
     flex: 1,
     flexDirection: "row",
     gap: 9,
     minHeight: 44,
-    paddingHorizontal: 13,
+    paddingHorizontal: 16,
   },
   searchText: {
     color: COLORS.muted,
     flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "400",
   },
   notificationButton: {
     alignItems: "center",
@@ -250,41 +241,28 @@ const styles = StyleSheet.create({
     width: 22,
   },
   list: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flex: 1,
     marginHorizontal: -18,
   },
   listContent: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flexGrow: 1,
     gap: 12,
     paddingBottom: 24,
     paddingHorizontal: 18,
-    paddingTop: 20,
-  },
-  sectionHeader: {
-    gap: 3,
-    marginBottom: -4,
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  pageInfo: {
-    color: COLORS.muted,
-    fontSize: 13,
+    paddingTop: 8,
   },
   centerBox: {
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flex: 1,
     gap: 8,
     justifyContent: "center",
     marginHorizontal: -18,
   },
   errorBox: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flex: 1,
     marginHorizontal: -18,
     paddingHorizontal: 18,
@@ -298,33 +276,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 6,
+    paddingHorizontal: 2,
+    paddingTop: 8,
   },
   pageButton: {
     alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    minHeight: 40,
-    paddingHorizontal: 14,
+    justifyContent: "center",
+    minHeight: 32,
+    minWidth: 76,
   },
   pageButtonDisabled: {
-    backgroundColor: COLORS.surfaceMuted,
+    opacity: 0.35,
   },
   pageButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "700",
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 2,
+    textDecorationLine: "underline",
   },
   pageButtonTextDisabled: {
     color: COLORS.mutedLight,
   },
   pageNumber: {
-    color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "700",
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "600",
+    minWidth: 62,
+    textAlign: "center",
   },
 });

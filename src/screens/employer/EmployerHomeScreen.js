@@ -7,12 +7,7 @@ import { COLORS } from "../../constants/theme";
 import { authService } from "../../services/authService";
 import { employerService } from "../../services/employerService";
 
-const actions = [
-  { route: "EmployerJobs", title: "Tin tuyển dụng", description: "Tạo, sửa và xem trạng thái tin đã đăng." },
-  { route: "CompanyProfile", title: "Hồ sơ công ty", description: "Cập nhật tên, lĩnh vực và địa chỉ công ty." },
-];
-
-export default function EmployerHomeScreen({ navigation, user, onLogout }) {
+export default function EmployerHomeScreen({ user, onLogout }) {
   const [stats, setStats] = useState({
     pendingCount: 0,
     approvedCount: 0,
@@ -51,8 +46,10 @@ export default function EmployerHomeScreen({ navigation, user, onLogout }) {
 
   return (
     <Screen scroll>
-      <Text style={styles.title}>Nhà tuyển dụng</Text>
-      <Text style={styles.subtitle}>{user.full_name}</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Tổng quan tuyển dụng</Text>
+        <Text style={styles.subtitle}>{user.full_name}</Text>
+      </View>
 
       <View style={styles.statsGrid}>
         <StatBox label="Chờ duyệt" value={stats.pendingCount} />
@@ -61,17 +58,9 @@ export default function EmployerHomeScreen({ navigation, user, onLogout }) {
         <StatBox label="Đơn ứng tuyển" value={stats.applicationCount} />
       </View>
 
-      <View style={styles.actionList}>
-        {actions.map((item) => (
-          <Pressable
-            key={item.route}
-            onPress={() => navigation.navigate(item.route)}
-            style={({ pressed }) => [styles.actionCard, pressed && styles.cardPressed]}
-          >
-            <Text style={styles.actionTitle}>{item.title}</Text>
-            <Text style={styles.actionDescription}>{item.description}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.noteBox}>
+        <Text style={styles.noteTitle}>Khu vực nhà tuyển dụng</Text>
+        <Text style={styles.noteText}>Dùng thanh menu bên dưới để quản lý tin tuyển dụng và hồ sơ công ty.</Text>
       </View>
 
       <Pressable onPress={handleLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.cardPressed]}>
@@ -91,22 +80,24 @@ function StatBox({ label, value }) {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    marginBottom: 16,
+  },
   title: {
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: "800",
   },
   subtitle: {
     color: COLORS.muted,
     fontSize: 15,
     marginTop: 4,
-    marginBottom: 16,
   },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   statBox: {
     backgroundColor: COLORS.surface,
@@ -127,29 +118,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  actionList: {
-    gap: 12,
-  },
-  actionCard: {
+  noteBox: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
     borderRadius: 10,
     borderWidth: 1,
-    padding: 16,
+    padding: 14,
   },
-  cardPressed: {
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  actionTitle: {
+  noteTitle: {
     color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
   },
-  actionDescription: {
+  noteText: {
     color: COLORS.muted,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 4,
+  },
+  cardPressed: {
+    backgroundColor: COLORS.surfaceMuted,
   },
   logoutButton: {
     alignItems: "center",
@@ -157,7 +145,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 10,
     borderWidth: 1,
-    marginTop: 18,
+    marginTop: 14,
     padding: 14,
   },
   logoutText: {

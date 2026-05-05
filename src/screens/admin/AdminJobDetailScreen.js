@@ -63,13 +63,11 @@ export default function AdminJobDetailScreen({ navigation, route }) {
       <View style={styles.card}>
         <Text style={styles.title}>{job.title}</Text>
         <StatusBadge status={job.status} />
-        <Text style={styles.meta}>{job.company_name}</Text>
-        <Text style={styles.meta}>
-          {(job.category_name || "Chưa cập nhật") + " • " + (job.location_name || "Chưa cập nhật")}
-        </Text>
-        <Text style={styles.meta}>
-          {(job.salary || "Thương lượng") + " • " + (job.work_type || "Chưa cập nhật")}
-        </Text>
+        <Info label="Công ty" value={job.company_name} />
+        <Info label="Ngành nghề" value={job.category_name || "Chưa cập nhật"} />
+        <Info label="Địa điểm" value={job.location_name || "Chưa cập nhật"} />
+        <Info label="Mức lương" value={job.salary || "Thương lượng"} />
+        <Info label="Hình thức" value={job.work_type || "Chưa cập nhật"} />
       </View>
 
       <Section title="Mô tả công việc" text={job.description} />
@@ -91,7 +89,7 @@ export default function AdminJobDetailScreen({ navigation, route }) {
         <PrimaryButton
           disabled={job.status === JOB_STATUS.APPROVED}
           onPress={handleApprove}
-          title="Duyệt tin"
+          title={job.status === JOB_STATUS.APPROVED ? "Đã duyệt" : "Duyệt tin"}
         />
         <Pressable
           disabled={job.status === JOB_STATUS.REJECTED}
@@ -102,10 +100,21 @@ export default function AdminJobDetailScreen({ navigation, route }) {
             job.status === JOB_STATUS.REJECTED && styles.disabledButton,
           ]}
         >
-          <Text style={styles.rejectText}>Từ chối tin</Text>
+          <Text style={styles.rejectText}>
+            {job.status === JOB_STATUS.REJECTED ? "Đã từ chối" : "Từ chối tin"}
+          </Text>
         </Pressable>
       </View>
     </Screen>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -113,9 +122,62 @@ function Section({ text, title }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionText}>{text || "Chưa cập nhật"}</Text>
+      <View style={styles.detailTextBlock}>
+        {formatDetailLines(text || "Chưa cập nhật", title).map((line, index) => {
+          if (line.type === "heading") {
+            return (
+              <Text key={`${line.text}-${index}`} style={styles.detailHeading}>
+                {line.text}
+              </Text>
+            );
+          }
+
+          if (line.type === "bullet") {
+            return (
+              <View key={`${line.text}-${index}`} style={styles.bulletRow}>
+                <Text style={styles.bulletDot}>•</Text>
+                <Text style={styles.bulletText}>{line.text}</Text>
+              </View>
+            );
+          }
+
+          return (
+            <Text key={`${line.text}-${index}`} style={styles.sectionText}>
+              {line.text}
+            </Text>
+          );
+        })}
+      </View>
     </View>
   );
+}
+
+function formatDetailLines(content, title) {
+  const skipHeading = title.toLowerCase();
+
+  return String(content)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const normalizedLine = line.replace(/^[-•]\s*/, "").trim();
+      const lowerLine = normalizedLine.replace(/:$/, "").toLowerCase();
+
+      if (lowerLine === skipHeading) {
+        return null;
+      }
+
+      if (line.startsWith("-") || line.startsWith("•")) {
+        return { text: normalizedLine, type: "bullet" };
+      }
+
+      if (line.endsWith(":")) {
+        return { text: line.replace(/:$/, ""), type: "heading" };
+      }
+
+      return { text: line, type: "text" };
+    })
+    .filter(Boolean);
 }
 
 const styles = StyleSheet.create({
@@ -128,7 +190,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 10,
     borderWidth: 1,
-    gap: 8,
+    gap: 10,
     marginBottom: 12,
     padding: 16,
   },
@@ -136,11 +198,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 21,
     fontWeight: "800",
+    lineHeight: 28,
   },
-  meta: {
+  infoRow: {
+    gap: 3,
+  },
+  infoLabel: {
     color: COLORS.muted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  infoValue: {
+    color: COLORS.text,
+    fontSize: 15,
   },
   section: {
     backgroundColor: COLORS.surface,
@@ -160,6 +230,33 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 15,
     lineHeight: 22,
+  },
+  detailTextBlock: {
+    gap: 6,
+  },
+  detailHeading: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  bulletRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+  },
+  bulletDot: {
+    color: COLORS.text,
+    fontSize: 16,
+    lineHeight: 23,
+    width: 10,
+  },
+  bulletText: {
+    color: COLORS.text,
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 23,
   },
   textArea: {
     backgroundColor: COLORS.surfaceMuted,

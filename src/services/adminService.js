@@ -1,6 +1,9 @@
 import { JOB_STATUS, ROLES, USER_STATUS } from "../constants/appConstants";
 import { getDatabase } from "../database/database";
 
+const ADMIN_JOB_STATUSES = [JOB_STATUS.PENDING, JOB_STATUS.APPROVED, JOB_STATUS.REJECTED];
+const ADMIN_USER_ROLES = [ROLES.CANDIDATE, ROLES.EMPLOYER];
+
 const jobSelectQuery = `
   SELECT
     j.id,
@@ -65,17 +68,47 @@ export async function getDashboardStats() {
   };
 }
 
-export async function getPendingJobs() {
+export async function getJobs({ status, limit = 20, offset = 0 } = {}) {
+  const { where, params } = buildJobFilter(status);
+  const pageLimit = Number(limit) > 0 ? Number(limit) : 20;
+  const pageOffset = Number(offset) > 0 ? Number(offset) : 0;
   const db = await getDatabase();
 
   return db.getAllAsync(
     `
       ${jobSelectQuery}
-      WHERE j.status = ?
-      ORDER BY j.created_at ASC, j.id ASC
+      ${where}
+      ORDER BY
+        CASE j.status
+          WHEN '${JOB_STATUS.PENDING}' THEN 0
+          WHEN '${JOB_STATUS.APPROVED}' THEN 1
+          ELSE 2
+        END,
+        j.created_at DESC,
+        j.id DESC
+      LIMIT ? OFFSET ?
     `,
-    [JOB_STATUS.PENDING]
+    [...params, pageLimit, pageOffset]
   );
+}
+
+export async function getJobCount(status) {
+  const { where, params } = buildJobFilter(status);
+  const db = await getDatabase();
+  const row = await db.getFirstAsync(
+    `
+      SELECT COUNT(*) AS total
+      FROM jobs j
+      ${where}
+    `,
+    params
+  );
+
+  return row?.total || 0;
+}
+
+export async function getPendingJobs(options = {}) {
+  return getJobs({ ...options, status: JOB_STATUS.PENDING });
 }
 
 export async function getJobById(jobId) {
@@ -117,13 +150,11 @@ export async function rejectJob(jobId, reason = "") {
   );
 }
 
-export async function getUsersByRole(role) {
-  const allowedRoles = [ROLES.CANDIDATE, ROLES.EMPLOYER];
+export async function getUsersByRole(role, { limit = 20, offset = 0 } = {}) {
+  validateRole(role);
 
-  if (!allowedRoles.includes(role)) {
-    throw new Error("Vai trò tài khoản không hợp lệ.");
-  }
-
+  const pageLimit = Number(limit) > 0 ? Number(limit) : 20;
+  const pageOffset = Number(offset) > 0 ? Number(offset) : 0;
   const db = await getDatabase();
 
   return db.getAllAsync(
@@ -132,9 +163,18 @@ export async function getUsersByRole(role) {
       FROM users
       WHERE role = ?
       ORDER BY created_at DESC, id DESC
+      LIMIT ? OFFSET ?
     `,
-    [role]
+    [role, pageLimit, pageOffset]
   );
+}
+
+export async function getUserCountByRole(role) {
+  validateRole(role);
+
+  const db = await getDatabase();
+  const row = await db.getFirstAsync("SELECT COUNT(*) AS total FROM users WHERE role = ?", [role]);
+  return row?.total || 0;
 }
 
 export async function getUserById(userId) {
@@ -176,13 +216,37 @@ export async function updateUserStatus(userId, status) {
   );
 }
 
+function buildJobFilter(status) {
+  if (!status || status === "all") {
+    return { params: [], where: "" };
+  }
+
+  if (!ADMIN_JOB_STATUSES.includes(status)) {
+    throw new Error("Trạng thái tin tuyển dụng không hợp lệ.");
+  }
+
+  return {
+    params: [status],
+    where: "WHERE j.status = ?",
+  };
+}
+
+function validateRole(role) {
+  if (!ADMIN_USER_ROLES.includes(role)) {
+    throw new Error("Vai trò tài khoản không hợp lệ.");
+  }
+}
+
 export const adminService = {
   getDashboardStats,
+  getJobs,
+  getJobCount,
   getPendingJobs,
   getJobById,
   approveJob,
   rejectJob,
   getUsersByRole,
+  getUserCountByRole,
   getUserById,
   updateUserStatus,
 };

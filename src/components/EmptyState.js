@@ -22,9 +22,9 @@ export default function EmptyState({
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     padding: 22,
   },
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   title: {
     color: COLORS.text,
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "600",
     textAlign: "center",
   },
   message: {

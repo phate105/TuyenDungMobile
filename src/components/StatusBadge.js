@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderRadius: RADII.sm,
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "600",
     overflow: "hidden",
     paddingHorizontal: 9,
     paddingVertical: 5,

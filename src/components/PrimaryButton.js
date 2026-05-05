@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   text: {
     color: COLORS.surface,
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   secondaryText: {
     color: COLORS.action,

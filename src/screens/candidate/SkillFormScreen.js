@@ -133,6 +133,6 @@ const styles = StyleSheet.create({
   removeText: {
     color: COLORS.danger,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "600",
   },
 });

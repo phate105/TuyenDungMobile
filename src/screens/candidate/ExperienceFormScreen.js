@@ -104,10 +104,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   form: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     gap: 12,
     padding: 15,

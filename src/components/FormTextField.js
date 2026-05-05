@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   label: {
     color: COLORS.text,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   requiredStar: {
     color: COLORS.danger,

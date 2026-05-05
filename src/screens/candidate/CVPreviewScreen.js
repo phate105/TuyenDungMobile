@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   name: {
     color: COLORS.text,
     fontSize: 24,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   desiredTitle: {
     color: COLORS.muted,

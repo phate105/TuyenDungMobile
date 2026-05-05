@@ -79,7 +79,7 @@ export default function CandidateProfileScreen({ navigation, user }) {
 
   if (loading) {
     return (
-      <Screen scroll>
+      <Screen scroll style={{ backgroundColor: COLORS.surface }}>
         <View style={styles.centerBox}>
           <ActivityIndicator color={COLORS.action} />
           <Text style={styles.mutedText}>Đang tải hồ sơ...</Text>
@@ -220,10 +220,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   headerCard: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 14,
     padding: 16,
@@ -257,7 +256,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: COLORS.surface,
     fontSize: 22,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   cameraBadge: {
     alignItems: "center",
@@ -283,7 +282,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     flexShrink: 1,
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: 22,
   },
   locationRow: {
@@ -313,14 +312,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceMuted,
   },
   card: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     gap: 12,
     marginBottom: 14,
-    padding: 15,
+    padding: 16,
   },
   cardPressed: {
     backgroundColor: COLORS.surfaceMuted,
@@ -346,7 +344,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: COLORS.text,
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   infoRow: {
     borderTopColor: COLORS.border,
@@ -357,7 +355,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     color: COLORS.muted,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   infoValue: {
     color: COLORS.text,

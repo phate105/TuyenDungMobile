@@ -9,6 +9,8 @@ export default function JobCard({
   job,
   saved = false,
   compact = false,
+  monochrome = false,
+  blueScale = false,
   onPress,
   onToggleSave,
   rightAccessory = null,
@@ -21,15 +23,31 @@ export default function JobCard({
       style={({ pressed }) => [
         styles.card,
         compact && styles.compactCard,
+        monochrome && styles.monochromeCard,
+        blueScale && styles.blueScaleCard,
         pressed && styles.cardPressed,
       ]}
     >
       <View style={styles.header}>
-        <View style={[styles.companyLogo, compact && styles.compactCompanyLogo]}>
+        <View
+          style={[
+            styles.companyLogo,
+            compact && styles.compactCompanyLogo,
+            monochrome && styles.monochromeCompanyLogo,
+            blueScale && styles.blueScaleCompanyLogo,
+          ]}
+        >
           {logoSource ? (
             <Image resizeMode="contain" source={logoSource} style={styles.companyLogoImage} />
           ) : (
-            <Text style={[styles.companyLogoText, compact && styles.compactCompanyLogoText]}>
+            <Text
+              style={[
+                styles.companyLogoText,
+                compact && styles.compactCompanyLogoText,
+                monochrome && styles.monochromeCompanyLogoText,
+                blueScale && styles.blueScaleCompanyLogoText,
+              ]}
+            >
               {getCompanyInitial(job.company_name)}
             </Text>
           )}
@@ -56,10 +74,15 @@ export default function JobCard({
             activeOpacity={0.7}
             hitSlop={8}
             onPress={onToggleSave}
-            style={[styles.heartButton, compact && styles.compactHeartButton]}
+            style={[
+              styles.heartButton,
+              compact && styles.compactHeartButton,
+              monochrome && styles.monochromeHeartButton,
+              blueScale && styles.blueScaleHeartButton,
+            ]}
           >
             <Ionicons
-              color={saved ? COLORS.favorite : COLORS.mutedLight}
+              color={saved ? (blueScale ? "#0466C8" : COLORS.favorite) : "#7D8597"}
               name={saved ? "heart" : "heart-outline"}
               size={compact ? 19 : 22}
             />
@@ -68,7 +91,14 @@ export default function JobCard({
       </View>
 
       <View style={styles.footer}>
-        <Text style={[styles.workTypeBadge, compact && styles.compactWorkTypeBadge]}>
+        <Text
+          style={[
+            styles.workTypeBadge,
+            compact && styles.compactWorkTypeBadge,
+            monochrome && styles.monochromeWorkTypeBadge,
+            blueScale && styles.blueScaleWorkTypeBadge,
+          ]}
+        >
           {getWorkTypeLabel(job.work_type)}
         </Text>
         <Text numberOfLines={1} style={[styles.categoryText, compact && styles.compactCategoryText]}>
@@ -96,17 +126,24 @@ function getCompanyInitial(name = "") {
 
 const styles = StyleSheet.create({
   card: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     gap: 12,
-    padding: 15,
+    padding: 16,
   },
   compactCard: {
     gap: 10,
     padding: 12,
+  },
+  monochromeCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+  },
+  blueScaleCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#D8DDE6",
   },
   cardPressed: {
     opacity: 0.94,
@@ -119,11 +156,14 @@ const styles = StyleSheet.create({
   },
   companyLogo: {
     alignItems: "center",
-    backgroundColor: COLORS.brandSoft,
+    backgroundColor: "#FFFFFF",
+    borderColor: COLORS.border,
+    borderWidth: 1,
     borderRadius: RADII.md,
     height: 44,
     justifyContent: "center",
     width: 44,
+    overflow: "hidden",
   },
   companyLogoImage: {
     height: "82%",
@@ -134,10 +174,22 @@ const styles = StyleSheet.create({
     height: 60,
     width: 60,
   },
+  monochromeCompanyLogo: {
+    backgroundColor: "#F4F4F5",
+  },
+  blueScaleCompanyLogo: {
+    backgroundColor: "#023E7D",
+  },
   companyLogoText: {
     color: COLORS.brand,
     fontSize: 18,
     fontWeight: "700",
+  },
+  monochromeCompanyLogoText: {
+    color: "#111111",
+  },
+  blueScaleCompanyLogoText: {
+    color: "#FFFFFF",
   },
   compactCompanyLogoText: {
     fontSize: 18,
@@ -147,9 +199,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "900",
-    lineHeight: 21,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
   },
   compactTitle: {
     fontSize: 14,
@@ -158,7 +210,7 @@ const styles = StyleSheet.create({
   company: {
     color: "#444444",
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "400",
     marginTop: 3,
   },
   compactCompany: {
@@ -176,6 +228,12 @@ const styles = StyleSheet.create({
   compactHeartButton: {
     height: 31,
     width: 31,
+  },
+  monochromeHeartButton: {
+    backgroundColor: "#F7F7F7",
+  },
+  blueScaleHeartButton: {
+    backgroundColor: "#EEF3F8",
   },
   rightAccessory: {
     alignItems: "flex-end",
@@ -227,6 +285,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     paddingHorizontal: 8,
     paddingVertical: 4,
+  },
+  monochromeWorkTypeBadge: {
+    backgroundColor: "#F2F2F2",
+    color: "#111111",
+  },
+  blueScaleWorkTypeBadge: {
+    backgroundColor: "#EAF2FB",
+    color: "#023E7D",
   },
   categoryText: {
     color: COLORS.muted,

@@ -332,8 +332,7 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
         onPress={onPrevious}
         style={[styles.pageButton, !canGoPrevious && styles.pageButtonDisabled]}
       >
-        <Ionicons color={canGoPrevious ? COLORS.text : COLORS.mutedLight} name="chevron-back" size={18} />
-        <Text style={[styles.pageButtonText, !canGoPrevious && styles.pageButtonTextDisabled]}>Trước</Text>
+        <Ionicons color={COLORS.primary} name="arrow-back" size={24} />
       </TouchableOpacity>
 
       <Text style={styles.pageNumber}>{page}/{totalPages}</Text>
@@ -344,8 +343,7 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
         onPress={onNext}
         style={[styles.pageButton, !canGoNext && styles.pageButtonDisabled]}
       >
-        <Text style={[styles.pageButtonText, !canGoNext && styles.pageButtonTextDisabled]}>Sau</Text>
-        <Ionicons color={canGoNext ? COLORS.text : COLORS.mutedLight} name="chevron-forward" size={18} />
+        <Ionicons color={COLORS.primary} name="arrow-forward" size={24} />
       </TouchableOpacity>
     </View>
   );
@@ -491,7 +489,7 @@ function SheetOption({ label, active, onPress }) {
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
   },
   screenContent: {
     paddingBottom: 0,
@@ -499,7 +497,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   topPanel: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderBottomColor: COLORS.border,
     borderBottomWidth: 1,
     paddingHorizontal: 18,
@@ -519,21 +517,21 @@ const styles = StyleSheet.create({
   },
   searchBox: {
     alignItems: "center",
-    backgroundColor: COLORS.surfaceMuted,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 22,
     borderWidth: 1,
     flex: 1,
     flexDirection: "row",
     gap: 9,
-    minHeight: 42,
-    paddingHorizontal: 13,
+    minHeight: 44,
+    paddingHorizontal: 16,
   },
   searchText: {
     color: COLORS.text,
     flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "400",
   },
   searchPlaceholder: {
     color: COLORS.mutedLight,
@@ -574,14 +572,14 @@ const styles = StyleSheet.create({
   },
   countNumber: {
     color: COLORS.action,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   resultList: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flex: 1,
   },
   listContent: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flexGrow: 1,
     gap: 12,
     paddingBottom: 22,
@@ -589,7 +587,7 @@ const styles = StyleSheet.create({
   },
   centerBox: {
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flex: 1,
     gap: 8,
     justifyContent: "center",
@@ -603,34 +601,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 4,
+    paddingHorizontal: 2,
+    paddingTop: 8,
   },
   pageButton: {
     alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    minHeight: 40,
-    paddingHorizontal: 14,
+    justifyContent: "center",
+    minHeight: 32,
+    minWidth: 76,
   },
   pageButtonDisabled: {
-    backgroundColor: COLORS.surfaceMuted,
+    opacity: 0.35,
   },
   pageButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "700",
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 2,
+    textDecorationLine: "underline",
   },
   pageButtonTextDisabled: {
     color: COLORS.mutedLight,
   },
   pageNumber: {
-    color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "700",
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "600",
+    minWidth: 62,
+    textAlign: "center",
   },
   sheetRoot: {
     flex: 1,
@@ -648,6 +646,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     minHeight: "56%",
+    maxHeight: "80%",
     paddingHorizontal: 18,
     paddingTop: 10,
   },
@@ -662,7 +661,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: COLORS.text,
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "600",
     marginBottom: 14,
   },
   sheetList: {

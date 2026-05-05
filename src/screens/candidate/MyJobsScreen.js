@@ -180,6 +180,7 @@ function ApplicationCard({ application, onPress }) {
     id: application.job_id,
     title: application.job_title,
     company_name: application.company_name,
+    logo_path: application.logo_path,
     location_name: application.location_name,
     salary: application.salary,
     work_type: application.work_type,
@@ -198,7 +199,7 @@ function ApplicationCard({ application, onPress }) {
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
   },
   screenContent: {
     paddingBottom: 0,
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   headerPanel: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderBottomColor: COLORS.border,
     borderBottomWidth: 1,
     paddingTop: 16,
@@ -223,8 +224,8 @@ const styles = StyleSheet.create({
   title: {
     color: COLORS.text,
     flex: 1,
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 21,
+    fontWeight: "700",
     textAlign: "center",
   },
   notificationButton: {
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     width: 22,
   },
   tabs: {
-    backgroundColor: "#F7F8FA",
+    backgroundColor: COLORS.background,
     borderBottomColor: COLORS.border,
     borderBottomWidth: 1,
     flexDirection: "row",
@@ -269,11 +270,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   bodyScroll: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flex: 1,
   },
   scrollContent: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     flexGrow: 1,
     paddingBottom: 22,
     paddingHorizontal: 18,

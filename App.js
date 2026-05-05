@@ -2,12 +2,36 @@ import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as Font from "expo-font";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  Inter_900Black,
+} from "@expo-google-fonts/inter";
 
 import LaunchScreen from "./src/components/LaunchScreen";
 import { COLORS } from "./src/constants/appConstants";
 import { initializeDatabase } from "./src/database/initDatabase";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { authService } from "./src/services/authService";
+
+const setCustomText = () => {
+  const TextRender = Text.render;
+  if (TextRender) {
+    Text.render = function render(props, ref) {
+      let newProps = { ...props, style: [{ fontFamily: 'Inter' }, props.style] };
+      return TextRender.apply(this, [newProps, ref]);
+    };
+  } else {
+    Text.defaultProps = Text.defaultProps || {};
+    Text.defaultProps.style = [{ fontFamily: 'Inter' }, Text.defaultProps.style];
+  }
+};
+setCustomText();
+
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);
@@ -24,6 +48,14 @@ export default function App() {
         await Promise.all([
           minimumDelay,
           (async () => {
+            await Font.loadAsync({
+              "Inter": Inter_400Regular,
+              "Inter-Medium": Inter_500Medium,
+              "Inter-SemiBold": Inter_600SemiBold,
+              "Inter-Bold": Inter_700Bold,
+              "Inter-ExtraBold": Inter_800ExtraBold,
+              "Inter-Black": Inter_900Black,
+            });
             await initializeDatabase();
             const user = await authService.getCurrentUser();
 

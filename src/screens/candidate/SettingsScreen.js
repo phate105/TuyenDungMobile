@@ -101,7 +101,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   list: {
-    ...SHADOWS.card,
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
     borderRadius: RADII.md,
@@ -109,7 +108,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   logoutWrap: {
-    ...SHADOWS.card,
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
     borderRadius: RADII.md,

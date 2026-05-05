@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   label: {
     color: COLORS.text,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   trigger: {
     alignItems: "center",
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: COLORS.text,
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   closeText: {
     color: COLORS.muted,

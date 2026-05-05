@@ -153,10 +153,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   card: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     gap: 14,
     padding: 15,
@@ -164,7 +163,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: COLORS.text,
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "600",
     marginBottom: 2,
   },
   centerBox: {

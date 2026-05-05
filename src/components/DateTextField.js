@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   label: {
     color: COLORS.text,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   requiredStar: {
     color: COLORS.danger,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   pickText: {
     color: COLORS.action,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   backdrop: {
     backgroundColor: "rgba(0, 0, 0, 0.35)",
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: COLORS.text,
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   cancelText: {
     color: COLORS.muted,
@@ -260,6 +260,6 @@ const styles = StyleSheet.create({
   doneText: {
     color: COLORS.surface,
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "600",
   },
 });

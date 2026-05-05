@@ -239,10 +239,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   jobCard: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 14,
     padding: 16,
@@ -250,7 +249,7 @@ const styles = StyleSheet.create({
   jobTitle: {
     color: COLORS.text,
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "700",
     lineHeight: 24,
   },
   companyName: {
@@ -273,10 +272,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   cvCard: {
-    ...SHADOWS.card,
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: RADII.lg,
+    backgroundColor: "#ffffff",
+    borderColor: "#cccccc",
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 14,
     padding: 16,
@@ -287,7 +285,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: COLORS.text,
     fontSize: 17,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   cvActions: {
     gap: 10,
@@ -331,7 +329,7 @@ const styles = StyleSheet.create({
     color: COLORS.warning,
     flex: 1,
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   noticeText: {
     color: COLORS.warning,
@@ -348,7 +346,7 @@ const styles = StyleSheet.create({
   label: {
     color: COLORS.text,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   textArea: {
     backgroundColor: COLORS.surface,

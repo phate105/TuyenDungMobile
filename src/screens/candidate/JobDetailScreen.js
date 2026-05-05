@@ -37,47 +37,47 @@ export default function JobDetailScreen({ route, navigation, user }) {
 
   useFocusEffect(
     useCallback(() => {
-    let mounted = true;
+      let mounted = true;
 
-    async function loadJob() {
-      try {
-        setLoading(true);
-        setError("");
+      async function loadJob() {
+        try {
+          setLoading(true);
+          setError("");
 
-        const [result, savedResult, appliedResult] = await Promise.all([
-          jobService.getJobById(jobId),
-          user?.id ? jobService.isJobSaved(user.id, jobId) : Promise.resolve(false),
-          user?.id ? applicationService.hasApplied(user.id, jobId) : Promise.resolve(false),
-        ]);
+          const [result, savedResult, appliedResult] = await Promise.all([
+            jobService.getJobById(jobId),
+            user?.id ? jobService.isJobSaved(user.id, jobId) : Promise.resolve(false),
+            user?.id ? applicationService.hasApplied(user.id, jobId) : Promise.resolve(false),
+          ]);
 
-        if (!mounted) {
-          return;
-        }
+          if (!mounted) {
+            return;
+          }
 
-        if (!result) {
-          setError("Không tìm thấy việc hoặc việc chưa được duyệt.");
-          return;
-        }
+          if (!result) {
+            setError("Không tìm thấy việc hoặc việc chưa được duyệt.");
+            return;
+          }
 
-        setJob(result);
-        setSaved(savedResult);
-        setApplied(appliedResult);
-      } catch (err) {
-        if (mounted) {
-          setError(err.message);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
+          setJob(result);
+          setSaved(savedResult);
+          setApplied(appliedResult);
+        } catch (err) {
+          if (mounted) {
+            setError(err.message);
+          }
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
         }
       }
-    }
 
-    loadJob();
+      loadJob();
 
-    return () => {
-      mounted = false;
-    };
+      return () => {
+        mounted = false;
+      };
     }, [jobId, user?.id])
   );
 
@@ -182,7 +182,6 @@ export default function JobDetailScreen({ route, navigation, user }) {
               <Text numberOfLines={1} style={styles.heroCompany}>
                 {job.company_name}
               </Text>
-              <Ionicons color={COLORS.muted} name="chevron-forward" size={15} />
             </TouchableOpacity>
 
             <View style={styles.metaGrid}>
@@ -432,7 +431,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: COLORS.text,
     fontSize: 15,
-    fontWeight: "800",
+    fontWeight: "600",
   },
   headerSubtitle: {
     color: COLORS.muted,
@@ -460,12 +459,12 @@ const styles = StyleSheet.create({
     height: 78,
     justifyContent: "center",
     width: 78,
-    ...SHADOWS.card,
+    overflow: "hidden",
   },
   logoBadgeText: {
     color: COLORS.surface,
     fontSize: 34,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   logoImage: {
     height: "82%",
@@ -477,9 +476,9 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: COLORS.text,
-    fontSize: 23,
-    fontWeight: "900",
-    lineHeight: 31,
+    fontSize: 21,
+    fontWeight: "700",
+    lineHeight: 28,
     textAlign: "center",
   },
   heroCompany: {
@@ -551,7 +550,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: COLORS.text,
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "600",
     marginBottom: 10,
   },
   companySectionHeader: {
@@ -581,7 +580,7 @@ const styles = StyleSheet.create({
   detailHeading: {
     color: COLORS.text,
     fontSize: 15,
-    fontWeight: "800",
+    fontWeight: "600",
     lineHeight: 22,
     marginTop: 8,
   },
@@ -616,7 +615,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   bottomBar: {
-    ...SHADOWS.card,
     alignItems: "center",
     backgroundColor: COLORS.surface,
     borderTopColor: COLORS.border,

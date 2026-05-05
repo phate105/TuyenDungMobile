@@ -48,44 +48,10 @@ const Tab = createBottomTabNavigator();
 
 function CandidateTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const bottomInset = Math.max(insets.bottom, 12);
-  const tabWidth = width / state.routes.length;
-  const indicatorPosition = useRef(new Animated.Value(state.index)).current;
-  const indicatorTranslateX = indicatorPosition.interpolate({
-    inputRange: [0, state.routes.length - 1],
-    outputRange: [2, (state.routes.length - 1) * tabWidth + 2],
-  });
-
-  function moveIndicator(index) {
-    Animated.spring(indicatorPosition, {
-      damping: 26,
-      mass: 0.5,
-      overshootClamping: true,
-      restDisplacementThreshold: 0.01,
-      restSpeedThreshold: 0.01,
-      stiffness: 760,
-      toValue: index,
-      useNativeDriver: true,
-    }).start();
-  }
-
-  useEffect(() => {
-    moveIndicator(state.index);
-  }, [indicatorPosition, state.index]);
 
   return (
-    <View style={[styles.tabBar, { height: 62 + bottomInset }]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.tabActiveLine,
-          {
-            transform: [{ translateX: indicatorTranslateX }],
-            width: Math.max(tabWidth - 4, 0),
-          },
-        ]}
-      />
+    <View style={[styles.tabBar, { height: 44 + bottomInset }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
@@ -99,7 +65,7 @@ function CandidateTabBar({ state, descriptors, navigation }) {
           });
 
           if (!isFocused && !event.defaultPrevented) {
-            moveIndicator(index);
+            
             navigation.navigate(route.name);
           }
         };
@@ -128,7 +94,7 @@ function CandidateTabBar({ state, descriptors, navigation }) {
 }
 
 function CandidateTabBarItem({ bottomInset, isFocused, label, onLongPress, onPress, routeName }) {
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const scaleValue = useRef(new Animated.Value(1)).current;
   const iconNames = {
     CandidateProfileTab: "person",
     ExploreTab: "home",
@@ -136,21 +102,22 @@ function CandidateTabBarItem({ bottomInset, isFocused, label, onLongPress, onPre
   };
 
   const handlePressIn = () => {
-    overlayOpacity.setValue(0);
-    Animated.timing(overlayOpacity, {
-      duration: 45,
-      toValue: 1,
+    Animated.spring(scaleValue, {
+      toValue: 0.8,
       useNativeDriver: true,
     }).start();
   };
 
   const handlePressOut = () => {
-    Animated.timing(overlayOpacity, {
-      duration: 80,
-      toValue: 0,
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
       useNativeDriver: true,
     }).start();
   };
+
+  const iconName = isFocused ? iconNames[routeName] : `${iconNames[routeName]}-outline`;
 
   return (
     <Pressable
@@ -161,17 +128,10 @@ function CandidateTabBarItem({ bottomInset, isFocused, label, onLongPress, onPre
       onPressOut={handlePressOut}
       style={styles.tabButton}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.tabPressOverlay,
-          {
-            opacity: overlayOpacity,
-          },
-        ]}
-      />
-      <View style={[styles.tabButtonContent, { paddingBottom: bottomInset, paddingTop: Math.max(10, bottomInset > 12 ? 8 : 10) }]}>
-        <Ionicons color={isFocused ? COLORS.text : COLORS.mutedLight} name={iconNames[routeName]} size={24} />
+      <View style={[styles.tabButtonContent, { paddingBottom: bottomInset, paddingTop: Math.max(8, bottomInset > 12 ? 6 : 8) }]}>
+        <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+          <Ionicons color={isFocused ? COLORS.text : COLORS.mutedLight} name={iconName} size={22} />
+        </Animated.View>
         <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>{label}</Text>
       </View>
     </Pressable>
@@ -233,7 +193,7 @@ function CandidateTabs({ user }) {
       screenOptions={{
         headerShown: false,
         sceneContainerStyle: {
-          backgroundColor: COLORS.background,
+          backgroundColor: "#F0F2F5",
         },
       }}
     >
@@ -397,17 +357,8 @@ function CandidateNavigator({ user, onLogout }) {
 function EmployerNavigator({ user, onLogout }) {
   return (
     <Stack.Navigator screenOptions={lightStackScreenOptions}>
-      <Stack.Screen name="EmployerHome" options={{ title: "Nh\u00e0 tuy\u1ec3n d\u1ee5ng" }}>
-        {(props) => <EmployerHomeScreen {...props} user={user} onLogout={onLogout} />}
-      </Stack.Screen>
-      <Stack.Screen
-        name="EmployerJobs"
-        options={{
-          headerBackTitleVisible: false,
-          title: "Tin tuy\u1ec3n d\u1ee5ng",
-        }}
-      >
-        {(props) => <EmployerJobsScreen {...props} user={user} />}
+      <Stack.Screen name="EmployerTabs" options={{ headerShown: false }}>
+        {(props) => <EmployerTabs {...props} user={user} onLogout={onLogout} />}
       </Stack.Screen>
       <Stack.Screen
         name="EmployerJobForm"
@@ -445,57 +396,80 @@ function EmployerNavigator({ user, onLogout }) {
       >
         {(props) => <ApplicantCVScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="CompanyProfile"
-        options={{
-          headerBackTitleVisible: false,
-          title: "H\u1ed3 s\u01a1 c\u00f4ng ty",
-        }}
-      >
-        {(props) => <CompanyProfileScreen {...props} user={user} />}
-      </Stack.Screen>
     </Stack.Navigator>
+  );
+}
+
+function EmployerTabs({ user, onLogout }) {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerStyle: {
+          backgroundColor: COLORS.surface,
+        },
+        headerShadowVisible: false,
+        headerTintColor: COLORS.text,
+        headerTitleAlign: "center",
+        headerTitleStyle: {
+          fontWeight: "800",
+        },
+        tabBarActiveTintColor: COLORS.text,
+        tabBarInactiveTintColor: COLORS.mutedLight,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          height: 44,
+          paddingBottom: 4,
+          paddingTop: 4,
+        },
+        tabBarIcon: ({ color, size, focused }) => {
+          const icons = {
+            EmployerHomeTab: "grid",
+            EmployerJobsTab: "briefcase",
+            CompanyProfileTab: "business",
+          };
+          const name = focused ? icons[route.name] : `${icons[route.name]}-outline`;
+          return <Ionicons color={color} name={name} size={size} />;
+        },
+      })}
+    >
+      <Tab.Screen name="EmployerHomeTab" options={{ title: "Tổng quan" }}>
+        {(props) => <EmployerHomeScreen {...props} user={user} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen name="EmployerJobsTab" options={{ title: "Tin tuyển dụng" }}>
+        {(props) => <EmployerJobsScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="CompanyProfileTab" options={{ title: "Công ty" }}>
+        {(props) => <CompanyProfileScreen {...props} user={user} />}
+      </Tab.Screen>
+    </Tab.Navigator>
   );
 }
 
 function AdminNavigator({ user, onLogout }) {
   return (
     <Stack.Navigator screenOptions={lightStackScreenOptions}>
-      <Stack.Screen name="AdminHome" options={{ title: LABELS.screens.adminHome }}>
-        {(props) => <AdminHomeScreen {...props} user={user} onLogout={onLogout} />}
-      </Stack.Screen>
-      <Stack.Screen
-        name="PendingJobs"
-        options={{
-          headerBackTitleVisible: false,
-          title: "Duy\u1ec7t tin",
-        }}
-      >
-        {(props) => <PendingJobsScreen {...props} user={user} />}
+      <Stack.Screen name="AdminTabs" options={{ headerShown: false }}>
+        {(props) => <AdminTabs {...props} user={user} onLogout={onLogout} />}
       </Stack.Screen>
       <Stack.Screen
         name="AdminJobDetail"
         options={{
           headerBackTitleVisible: false,
-          title: "Chi ti\u1ebft tin",
+          title: "Chi tiết tin",
         }}
       >
         {(props) => <AdminJobDetailScreen {...props} user={user} />}
       </Stack.Screen>
       <Stack.Screen
-        name="UserManagement"
-        options={{
-          headerBackTitleVisible: false,
-          title: "Qu\u1ea3n l\u00fd t\u00e0i kho\u1ea3n",
-        }}
-      >
-        {(props) => <UserManagementScreen {...props} user={user} />}
-      </Stack.Screen>
-      <Stack.Screen
         name="UserDetail"
         options={{
           headerBackTitleVisible: false,
-          title: "Chi ti\u1ebft t\u00e0i kho\u1ea3n",
+          title: "Chi tiết tài khoản",
         }}
       >
         {(props) => <UserDetailScreen {...props} user={user} />}
@@ -504,6 +478,55 @@ function AdminNavigator({ user, onLogout }) {
   );
 }
 
+function AdminTabs({ user, onLogout }) {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerStyle: {
+          backgroundColor: COLORS.surface,
+        },
+        headerShadowVisible: false,
+        headerTintColor: COLORS.text,
+        headerTitleAlign: "center",
+        headerTitleStyle: {
+          fontWeight: "800",
+        },
+        tabBarActiveTintColor: COLORS.text,
+        tabBarInactiveTintColor: COLORS.mutedLight,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          height: 44,
+          paddingBottom: 4,
+          paddingTop: 4,
+        },
+        tabBarIcon: ({ color, size, focused }) => {
+          const icons = {
+            AdminHomeTab: "grid",
+            AdminJobsTab: "document-text",
+            AdminUsersTab: "people",
+          };
+          const name = focused ? icons[route.name] : `${icons[route.name]}-outline`;
+          return <Ionicons color={color} name={name} size={size} />;
+        },
+      })}
+    >
+      <Tab.Screen name="AdminHomeTab" options={{ title: "Tổng quan" }}>
+        {(props) => <AdminHomeScreen {...props} user={user} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen name="AdminJobsTab" options={{ title: "Tin tuyển dụng" }}>
+        {(props) => <PendingJobsScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="AdminUsersTab" options={{ title: "Tài khoản" }}>
+        {(props) => <UserManagementScreen {...props} user={user} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+}
 function RoleNavigator({ user, onLogout }) {
   if (user.role === ROLES.ADMIN) {
     return <AdminNavigator user={user} onLogout={onLogout} />;
@@ -531,7 +554,7 @@ export default function AppNavigator({ user, onAuthenticated, onLogout }) {
 const styles = StyleSheet.create({
   tabBar: {
     alignItems: "stretch",
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderTopColor: COLORS.border,
     borderTopWidth: 1,
     flexDirection: "row",
@@ -581,4 +604,3 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
 });
-
