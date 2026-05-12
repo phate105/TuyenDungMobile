@@ -57,7 +57,7 @@ export const STATUS_LABELS = {
   approved: "Đã duyệt",
   rejected: "Bị từ chối",
   submitted: "Đã nộp",
-  viewed: "Đã xem",
+  viewed: "Xem xét",
   suitable: "Phù hợp",
   active: "Hoạt động",
   locked: "Bị khóa",

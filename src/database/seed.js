@@ -706,6 +706,13 @@ const locationDetails = [
 ];
 
 export async function seedDatabase(db) {
+  const userCount = await db.getFirstAsync("SELECT COUNT(*) as count FROM users");
+
+  if (userCount.count > 0) {
+    console.log("Database đã có dữ liệu, bỏ qua bước seed.");
+    return;
+  }
+  
   await seedLookup(db, "categories", categories);
   await seedLookup(db, "locations", locations);
   await repairDisplayText(db);

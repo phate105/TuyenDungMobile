@@ -1,63 +1,67 @@
-import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useState, useEffect } from "react";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, ScrollView, Image } from "react-native";
+import { useFocusEffect, useRoute, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
 import Screen from "../../components/Screen";
 import StatusBadge from "../../components/StatusBadge";
 import { ROLES } from "../../constants/appConstants";
-import { COLORS } from "../../constants/theme";
+import { COLORS, RADII } from "../../constants/theme";
 import { adminService } from "../../services/adminService";
-
+import { getCompanyLogoSource } from "../../constants/companyLogos";
+  
 const PAGE_SIZE = 20;
+
 const roleOptions = [
   { label: "Ứng viên", value: ROLES.CANDIDATE },
   { label: "Nhà tuyển dụng", value: ROLES.EMPLOYER },
 ];
 
-export default function UserManagementScreen({ navigation }) {
-  const [role, setRole] = useState(ROLES.CANDIDATE);
+export default function UserManagementScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+
+  const [role, setRole] = useState(route.params?.role || ROLES.CANDIDATE);
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+    if (route.params?.role) {
+      setRole(route.params.role);
+      setPage(1);
+    }
+  }, [route.params?.role, navigation]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-
       async function loadUsers() {
         try {
           setLoading(true);
           setError("");
-
           const offset = (page - 1) * PAGE_SIZE;
           const [rows, total] = await Promise.all([
             adminService.getUsersByRole(role, { limit: PAGE_SIZE, offset }),
             adminService.getUserCountByRole(role),
           ]);
-
           if (active) {
             setUsers(rows);
             setTotalUsers(total);
           }
         } catch (err) {
-          if (active) {
-            setError(err.message);
-          }
+          if (active) setError(err.message);
         } finally {
-          if (active) {
-            setLoading(false);
-          }
+          if (active) setLoading(false);
         }
       }
-
       loadUsers();
-
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, [page, role])
   );
 
@@ -66,73 +70,131 @@ export default function UserManagementScreen({ navigation }) {
     setPage(1);
   }
 
-  function renderUser({ item }) {
-    return (
-      <Pressable
-        onPress={() => navigation.navigate("UserDetail", { userId: item.id })}
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      >
-        <View style={styles.cardHeader}>
-          <Text numberOfLines={2} style={styles.name}>{item.full_name}</Text>
-          <StatusBadge status={item.status} />
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.titleSection}>
+        <Text style={styles.screenTitle}>Người dùng</Text>
+        <Text style={styles.screenSubtitle}>Quản lý tài khoản và phân quyền hệ thống</Text>
+      </View>
+      <View style={styles.filterWrapper}>
+        <View style={styles.segment}>
+          {roleOptions.map((option) => {
+            const active = option.value === role;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => handleChangeRole(option.value)}
+                style={[styles.segmentButton, active && styles.segmentButtonActive]}
+              >
+                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-        <Text style={styles.meta}>{item.email}</Text>
-        <Text style={styles.meta}>{item.phone || "Chưa cập nhật"}</Text>
-      </Pressable>
+      </View>
+      <Text style={styles.countText}>
+        Tổng cộng {totalUsers} người dùng • Trang {page}/{totalPages}
+      </Text>
+    </View>
+  );
+
+  function renderUser({ item }) {
+    //console.log("Avatar path from DB:", item.avatar);
+    const logoSource = getCompanyLogoSource(item.avatar);
+    return (
+    <Pressable
+      onPress={() => navigation.navigate("UserDetail", { userId: item.id })}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      <View style={styles.cardMain}>
+        <View style={styles.cardContent}>
+          <View style={styles.userRow}>
+            {/* 1. Hiển thị Ảnh đại diện nếu có, nếu không hiện Icon */}
+            <View style={[styles.avatarMini, { backgroundColor: role === ROLES.CANDIDATE ? COLORS.action + "15" : "#6366F115" }]}>
+              {logoSource ? (
+                <Image 
+                  source={logoSource} 
+                  style={styles.avatarImage} 
+                  resizeMode="contain"
+                />
+              ) : (
+                <Ionicons 
+                  name={role === ROLES.CANDIDATE ? "person" : "business"} 
+                  size={14} 
+                  color={role === ROLES.CANDIDATE ? COLORS.action : "#6366F1"} 
+                />
+              )}
+            </View>
+
+            {/* 2. Container cho Tên để xử lý tràn chữ */}
+            <View style={styles.nameContainer}>
+              <Text numberOfLines={1} style={styles.userName}>
+                {item.full_name}
+              </Text>
+            </View>
+            
+            {/* 3. Badge trạng thái được đẩy về phía cuối dòng */}
+            <StatusBadge status={item.status} />
+          </View>
+
+          <View style={styles.metaInfo}>
+            <View style={styles.metaRow}>
+              <Ionicons name="mail-outline" size={14} color={COLORS.muted} />
+              <Text numberOfLines={1} style={styles.metaText}>{item.email}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="call-outline" size={14} color={COLORS.muted} />
+              <Text style={styles.metaText}>{item.phone || "Chưa cập nhật số điện thoại"}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.cardRight}>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
+        </View>
+      </View>
+    </Pressable>
     );
   }
 
   return (
     <Screen>
-      <View style={styles.segment}>
-        {roleOptions.map((option) => {
-          const active = option.value === role;
-
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => handleChangeRole(option.value)}
-              style={[styles.segmentButton, active && styles.segmentButtonActive]}
-            >
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{option.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
       {loading ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator color={COLORS.action} />
-          <Text style={styles.mutedText}>Đang tải tài khoản...</Text>
+          <ActivityIndicator color={COLORS.action} size="large" />
+          <Text style={styles.loadingText}>Đang truy xuất dữ liệu...</Text>
         </View>
       ) : error ? (
-        <Text style={styles.errorText}>{error}</Text>
+        <View style={styles.centerBox}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
           data={users}
-          initialNumToRender={8}
           keyExtractor={(item) => String(item.id)}
-          ListEmptyComponent={<Text style={styles.emptyText}>Chưa có tài khoản.</Text>}
+          renderItem={renderUser}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={60} color={COLORS.border} />
+              <Text style={styles.emptyText}>Danh sách người dùng trống</Text>
+            </View>
+          }
           ListFooterComponent={
-            totalUsers > 0 ? (
+            totalUsers > 0 && (
               <PaginationControls
                 page={page}
                 totalPages={totalPages}
-                onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
-                onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+                onNext={() => setPage(p => Math.min(totalPages, p + 1))}
+                onPrevious={() => setPage(p => Math.max(1, p - 1))}
               />
-            ) : null
+            )
           }
-          ListHeaderComponent={
-            <Text style={styles.countText}>
-              {totalUsers} tài khoản • Trang {page}/{totalPages}
-            </Text>
-          }
-          maxToRenderPerBatch={8}
-          renderItem={renderUser}
           showsVerticalScrollIndicator={false}
-          windowSize={7}
         />
       )}
     </Screen>
@@ -140,28 +202,32 @@ export default function UserManagementScreen({ navigation }) {
 }
 
 function PaginationControls({ page, totalPages, onNext, onPrevious }) {
-  const canGoPrevious = page > 1;
-  const canGoNext = page < totalPages;
-
   return (
     <View style={styles.pagination}>
-      <Pressable disabled={!canGoPrevious} onPress={onPrevious} style={[styles.pageButton, !canGoPrevious && styles.disabled]}>
-        <Text style={styles.pageButtonText}>Trước</Text>
+      <Pressable disabled={page === 1} onPress={onPrevious} style={[styles.pageButton, page === 1 && styles.disabled]}>
+        <Ionicons name="chevron-back" size={20} color={page === 1 ? COLORS.muted : COLORS.text} />
       </Pressable>
-      <Text style={styles.pageNumber}>{page}/{totalPages}</Text>
-      <Pressable disabled={!canGoNext} onPress={onNext} style={[styles.pageButton, !canGoNext && styles.disabled]}>
-        <Text style={styles.pageButtonText}>Sau</Text>
+      <View style={styles.pageInfo}>
+        <Text style={styles.pageNumberText}>Trang {page}</Text>
+        <Text style={styles.pageTotalText}>trên {totalPages}</Text>
+      </View>
+      <Pressable disabled={page === totalPages} onPress={onNext} style={[styles.pageButton, page === totalPages && styles.disabled]}>
+        <Ionicons name="chevron-forward" size={20} color={page === totalPages ? COLORS.muted : COLORS.text} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  headerContainer: { paddingTop: 10 },
+  titleSection: { paddingHorizontal: 16, marginBottom: 16 },
+  screenTitle: { fontSize: 26, fontWeight: "800", color: COLORS.text },
+  screenSubtitle: { fontSize: 15, color: COLORS.muted, marginTop: 4 },
+  filterWrapper: { paddingHorizontal: 16, marginBottom: 16 },
   segment: {
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: 12,
     flexDirection: "row",
-    marginBottom: 12,
     padding: 4,
   },
   segmentButton: {
@@ -175,96 +241,73 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
     borderWidth: 1,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
   },
-  segmentText: {
-    color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  segmentTextActive: {
-    color: COLORS.text,
-  },
-  listContent: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  countText: {
-    color: COLORS.muted,
-    fontSize: 14,
-    marginBottom: 2,
-  },
+  segmentText: { color: COLORS.muted, fontSize: 14, fontWeight: "700" },
+  segmentTextActive: { color: COLORS.text },
+  countText: { paddingHorizontal: 16, color: COLORS.muted, fontSize: 13, marginBottom: 12, fontWeight: "600", textTransform: 'uppercase' },
+  listContent: { paddingBottom: 40 },
   card: {
+    marginHorizontal: 16,
     backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: 10,
+    borderRadius: RADII.lg,
+    padding: 18,
+    marginBottom: 14,
     borderWidth: 1,
-    padding: 14,
+    borderColor: COLORS.border,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
-  cardPressed: {
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  cardHeader: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  name: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "800",
-    lineHeight: 22,
-  },
-  meta: {
-    color: COLORS.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  centerBox: {
-    alignItems: "center",
+  cardPressed: { transform: [{ scale: 0.98 }], backgroundColor: COLORS.surfaceMuted },
+  cardMain: { flexDirection: 'row', justifyContent: 'space-between' },
+  cardContent: { flex: 1, marginRight: 8 },
+  userRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 12, 
+    gap: 10,
+    width: '100%',
     flex: 1,
-    gap: 8,
-    justifyContent: "center",
   },
-  mutedText: {
-    color: COLORS.muted,
-    fontSize: 14,
+  avatarMini: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    overflow: 'hidden', 
   },
-  emptyText: {
-    color: COLORS.muted,
-    fontSize: 15,
-    textAlign: "center",
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain', // Giữ nguyên tỷ lệ logo
   },
-  errorText: {
-    color: COLORS.danger,
-    fontSize: 15,
-    textAlign: "center",
+  nameContainer: { flex: 1, minWidth: 0, marginRight: 8 },
+  userName: { fontSize: 17, fontWeight: "800", color: COLORS.text },
+  metaInfo: { gap: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  metaText: { fontSize: 13, color: COLORS.muted },
+  cardRight: { 
+    alignItems: 'flex-end', 
+    justifyContent: 'space-between',
+    paddingLeft: 10,
   },
-  pagination: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 4,
-  },
-  pageButton: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    minWidth: 82,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  pageButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pageNumber: {
-    color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 25, paddingVertical: 20 },
+  pageButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', elevation: 2 },
+  pageInfo: { alignItems: 'center' },
+  pageNumberText: { fontSize: 15, fontWeight: "800", color: COLORS.text },
+  pageTotalText: { fontSize: 11, color: COLORS.muted, textTransform: 'uppercase' },
+  disabled: { opacity: 0.3, elevation: 0 },
+  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  loadingText: { marginTop: 12, color: COLORS.muted },
+  emptyContainer: { alignItems: 'center', marginTop: 60, opacity: 0.4 },
+  emptyText: { marginTop: 12, fontSize: 16, color: COLORS.muted, fontWeight: "600" },
+  errorText: { color: COLORS.danger, marginTop: 10, textAlign: 'center', fontWeight: '500' }
 });
