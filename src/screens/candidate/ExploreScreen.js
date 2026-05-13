@@ -195,6 +195,7 @@ const styles = StyleSheet.create({
   },
   screenContent: {
     paddingBottom: 0,
+    paddingTop: 50,
   },
   hero: {
     backgroundColor: COLORS.background,

@@ -1,285 +1,252 @@
-import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View, ActivityIndicator } from "react-native";
-import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import React, { useCallback, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  StatusBar,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 
-import PrimaryButton from "../../components/PrimaryButton";
-import Screen from "../../components/Screen";
-import StatusBadge from "../../components/StatusBadge";
+// Giả định các hằng số và service của bạn
 import { COLORS, RADII } from "../../constants/theme";
-import { employerService } from "../../services/employerService";
+import { LABELS, getWorkTypeLabel } from "../../constants/labels";
+import { getCompanyLogoSource } from "../../constants/companyLogos";
+import { jobService } from "../../services/jobService";
+import PrimaryButton from "../../components/PrimaryButton";
+import EmptyState from "../../components/EmptyState";
 
-export default function EmployerJobDetailScreen({ user }) {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const { jobId } = route.params;
+const HEADER_ROW_HEIGHT = 56;
+
+export default function EmployerJobDetailScreen({ route, navigation }) {
+  // 1. Kiểm tra an toàn jobId từ route
+  const { jobId } = route.params || {};
+  const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
+
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  // 2. Tự động ẩn Header mặc định của Navigation để tránh lỗi 2 tiêu đề như trong ảnh
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      async function loadJob() {
+      let isMounted = true;
+
+      const loadJobDetails = async () => {
         try {
-          setLoading(true);
-          const row = await employerService.getJobById(user.id, jobId);
-          if (active) setJob(row);
-        } catch (err) {
-          Alert.alert("Lỗi", err.message);
-        } finally {
-          if (active) setLoading(false);
-        }
-      }
-      loadJob();
-      return () => { active = false; };
-    }, [jobId, user.id])
+            setLoading(true);
+            // Thay đổi từ getJobById sang getJobByIdForEmployer
+            const response = await jobService.getJobByIdForEmployer(jobId); 
+            
+            const data = response?.data || response;
+            if (data) {
+              setJob(data);
+            } else {
+              setError("Không tìm thấy thông tin công việc.");
+            }
+          } catch (err) {
+            setError("Lỗi kết nối.");
+          } finally {
+            setLoading(false);
+          }
+      };
+
+      loadJobDetails();
+      return () => { isMounted = false; };
+    }, [jobId])
   );
 
+  // 3. Hiệu ứng Header động khi cuộn
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 60, 90],
+    outputRange: [0, 0, 1],
+    extrapolate: "clamp",
+  });
+
+  const handleEdit = () => {
+    navigation.navigate("EmployerJobForm", { jobId });
+  };
+
+  const handleDelete = () => {
+    Alert.alert("Xác nhận", "Bạn có muốn xóa tin tuyển dụng này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setDeleting(true);
+            await jobService.deleteJob(jobId);
+            navigation.goBack();
+          } catch (err) {
+            Alert.alert("Lỗi", "Không thể xóa tin lúc này.");
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  // Render trạng thái Lỗi/Trống (Dựa trên ảnh image_ea62de.png)
   if (loading) {
     return (
-      <Screen>
-        <View style={styles.centerBox}>
-          <ActivityIndicator color={COLORS.action} size="large" />
-          <Text style={styles.loadingText}>Đang tải chi tiết...</Text>
-        </View>
-      </Screen>
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.action} />
+      </View>
     );
   }
 
-  if (!job) return null;
+  if (error || !job) {
+    return (
+      <View style={styles.screen}>
+        <View style={[styles.headerRow, { marginTop: insets.top }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerContainer}>
+          <EmptyState 
+            icon="alert-circle-outline" 
+            title="Lỗi" 
+            message={error || "Dữ liệu trống"} 
+          />
+          <PrimaryButton 
+            title="Quay lại" 
+            onPress={() => navigation.goBack()} 
+            style={{ marginTop: 20, width: '60%' }} 
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <Screen scroll contentContainerStyle={styles.container}>
-      {/* Header Card */}
-      <View style={styles.headerCard}>
-        <View style={styles.statusRow}>
-          <StatusBadge status={job.status} />
-          <Pressable 
-            onPress={() => navigation.navigate("EmployerJobForm", { jobId: job.id })}
-            style={styles.editIconButton}
-          >
-            <Ionicons name="create-outline" size={20} color={COLORS.action} />
-            <Text style={styles.editText}>Sửa tin</Text>
-          </Pressable>
+    <View style={styles.screen}>
+      <StatusBar barStyle="dark-content" />
+      
+      {/* Floating Header */}
+      <View style={[styles.customHeader, { height: insets.top + HEADER_ROW_HEIGHT }]}>
+        <Animated.View style={[styles.headerBg, { opacity: headerOpacity }]} />
+        <View style={[styles.headerContent, { marginTop: insets.top }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Animated.Text style={[styles.headerTitle, { opacity: headerOpacity }]} numberOfLines={1}>
+            {job.title}
+          </Animated.Text>
+          <View style={{ width: 40 }} />
         </View>
-
-        <Text style={styles.title}>{job.title}</Text>
-        <Text style={styles.companyName}>{job.company_name}</Text>
-
-        <View style={styles.infoGrid}>
-          <InfoItem icon="location-outline" label={job.location_name || "N/A"} />
-          <InfoItem icon="briefcase-outline" label={job.work_type} />
-          <InfoItem icon="cash-outline" label={job.salary || "Thỏa thuận"} color="#10B981" />
-          <InfoItem icon="layers-outline" label={job.category_name || "N/A"} />
-        </View>
-
-        <View style={styles.divider} />
-
-        <Pressable 
-          onPress={() => navigation.navigate("JobApplications", { jobId: job.id, jobTitle: job.title })}
-          style={styles.applicantBar}
-        >
-          <View style={styles.applicantInfo}>
-            <Ionicons name="people" size={20} color={COLORS.action} />
-            <Text style={styles.applicantText}>
-              <Text style={styles.boldText}>{job.application_count || 0}</Text> ứng viên đã nộp
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.muted} />
-        </Pressable>
       </View>
 
-      {/* Rejection Reason if any */}
-      {job.reject_reason && (
-        <View style={[styles.section, styles.rejectSection]}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="alert-circle" size={20} color={COLORS.danger} />
-            <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>Lý do từ chối</Text>
+      <Animated.ScrollView
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Banner Section */}
+        <View style={[styles.banner, { paddingTop: insets.top + HEADER_ROW_HEIGHT + 10 }]}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={getCompanyLogoSource(job.logo_path)}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
-          <Text style={styles.sectionText}>{job.reject_reason}</Text>
+          <Text style={styles.jobTitleText}>{job.title}</Text>
+          <Text style={styles.companyNameText}>{job.company_name}</Text>
+
+          <View style={styles.gridInfo}>
+            <InfoBox label="Mức lương" value={job.salary} icon="cash-outline" isLeft />
+            <InfoBox label="Địa điểm" value={job.location_name} icon="location-outline" />
+            <InfoBox label="Hình thức" value={getWorkTypeLabel(job.work_type)} icon="time-outline" isLeft />
+            <InfoBox label="Số lượng" value={`${job.quantity} người`} icon="people-outline" />
+          </View>
         </View>
-      )}
 
-      {/* Content Sections */}
-      <Section icon="document-text-outline" title="Mô tả công việc" content={job.description} />
-      <Section icon="list-outline" title="Yêu cầu công việc" content={job.requirements} />
+        {/* Details Section */}
+        <View style={styles.detailsBody}>
+          <DetailSection title="Mô tả công việc" content={job.description} />
+          <DetailSection title="Yêu cầu" content={job.requirements} />
+          <DetailSection title="Quyền lợi" content={job.benefits} />
+        </View>
+      </Animated.ScrollView>
 
-      <View style={styles.actions}>
-        <PrimaryButton
-          title="Xem danh sách ứng viên"
-          icon="people-outline"
-          onPress={() => navigation.navigate("JobApplications", { jobId: job.id, jobTitle: job.title })}
-          style={styles.primaryAction}
+      {/* Bottom Action Bar */}
+      <View style={[styles.bottomActions, { paddingBottom: insets.bottom + 10 }]}>
+        <TouchableOpacity style={styles.btnDelete} onPress={handleDelete} disabled={deleting}>
+          {deleting ? <ActivityIndicator color={COLORS.danger} /> : <Ionicons name="trash-outline" size={22} color={COLORS.danger} />}
+        </TouchableOpacity>
+        <PrimaryButton 
+          title="Chỉnh sửa tin" 
+          onPress={handleEdit} 
+          style={styles.btnEdit} 
         />
       </View>
-    </Screen>
-  );
-}
-
-function InfoItem({ icon, label, color = COLORS.muted }) {
-  return (
-    <View style={styles.infoItem}>
-      <Ionicons name={icon} size={16} color={color} />
-      <Text style={[styles.infoLabel, { color }]}>{label}</Text>
     </View>
   );
 }
 
-function Section({ icon, title, content }) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Ionicons name={icon} size={20} color={COLORS.text} />
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      <Text style={styles.sectionText}>{content || "Chưa cập nhật nội dung."}</Text>
-    </View>
-  );
-}
+// Sub-components
+const InfoBox = ({ label, value, icon, isLeft }) => (
+  <View style={[styles.infoBox, isLeft && styles.borderRight]}>
+    <Ionicons name={icon} size={20} color={COLORS.action} />
+    <Text style={styles.infoLabel}>{label}</Text>
+    <Text style={styles.infoValue} numberOfLines={1}>{value || "Thỏa thuận"}</Text>
+  </View>
+);
+
+const DetailSection = ({ title, content }) => (
+  <View style={styles.sectionMargin}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <Text style={styles.sectionText}>{content || "Chưa có thông tin cập nhật."}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 30,
-  },
-  centerBox: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    color: COLORS.muted,
-  },
-  headerCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADII.lg,
-    padding: 20,
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  editIconButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.action + "10",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  editText: {
-    color: COLORS.action,
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  title: {
-    color: COLORS.text,
-    fontSize: 24,
-    fontWeight: "800",
-    lineHeight: 30,
-    marginBottom: 6,
-  },
-  companyName: {
-    fontSize: 16,
-    color: COLORS.action,
-    fontWeight: "600",
-    marginBottom: 20,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 6,
-  },
-  infoLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    opacity: 0.5,
-    marginBottom: 16,
-  },
-  applicantBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.action + "08",
-    padding: 12,
-    borderRadius: 12,
-  },
-  applicantInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  applicantText: {
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  boldText: {
-    fontWeight: "800",
-    color: COLORS.action,
-  },
-  section: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADII.lg,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  rejectSection: {
-    borderColor: COLORS.danger + "40",
-    backgroundColor: COLORS.danger + "05",
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  sectionText: {
-    color: COLORS.text,
-    fontSize: 15,
-    lineHeight: 24,
-    opacity: 0.8,
-  },
-  actions: {
-    paddingHorizontal: 16,
-    marginTop: 10,
-  },
-  primaryAction: {
-    borderRadius: 14,
-    height: 56,
-  },
+  screen: { flex: 1, backgroundColor: COLORS.surface },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  
+  customHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
+  headerBg: { ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  headerContent: { height: HEADER_ROW_HEIGHT, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8 },
+  backButton: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: COLORS.text, flex: 1, textAlign: "center" },
+
+  banner: { backgroundColor: "#F8FAFA", alignItems: "center", paddingHorizontal: 20, paddingBottom: 20 },
+  logoContainer: { width: 80, height: 80, backgroundColor: "#FFF", borderRadius: 16, elevation: 2, justifyContent: "center", alignItems: "center", marginBottom: 15, borderWidth: 1, borderColor: COLORS.border },
+  logo: { width: "70%", height: "70%" },
+  jobTitleText: { fontSize: 22, fontWeight: "700", color: COLORS.text, textAlign: "center" },
+  companyNameText: { fontSize: 16, color: COLORS.muted, marginTop: 5 },
+
+  gridInfo: { flexDirection: "row", flexWrap: "wrap", marginTop: 25, borderTopWidth: 1, borderTopColor: "#EEE" },
+  infoBox: { width: "50%", paddingVertical: 15, alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#EEE" },
+  borderRight: { borderRightWidth: 1, borderRightColor: "#EEE" },
+  infoLabel: { fontSize: 12, color: COLORS.muted, marginTop: 4 },
+  infoValue: { fontSize: 14, fontWeight: "600", color: COLORS.text, marginTop: 2 },
+
+  detailsBody: { padding: 20 },
+  sectionMargin: { marginBottom: 25 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text, marginBottom: 10 },
+  sectionText: { fontSize: 15, color: "#444", lineHeight: 24 },
+
+  bottomActions: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#FFF", flexDirection: "row", padding: 15, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  btnDelete: { width: 50, height: 50, borderRadius: 12, borderWidth: 1, borderColor: COLORS.danger, justifyContent: "center", alignItems: "center" },
+  btnEdit: { flex: 1, height: 50 },
 });

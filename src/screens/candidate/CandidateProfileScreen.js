@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // 1. Import này
 
 import Screen from "../../components/Screen";
 import { LABELS, getWorkTypeLabel } from "../../constants/labels";
@@ -24,6 +25,7 @@ export default function CandidateProfileScreen({ navigation, user }) {
   const [fullCV, setFullCV] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updatingAvatar, setUpdatingAvatar] = useState(false);
+  const insets = useSafeAreaInsets(); // 2. Lấy các giá trị vùng an toàn
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -95,7 +97,7 @@ export default function CandidateProfileScreen({ navigation, user }) {
   const location = displayProfile.location_name || displayProfile.desired_location;
 
   return (
-    <Screen scroll>
+    <Screen scroll style={{ paddingTop: insets.top }}>
       <View style={styles.headerCard}>
         <View style={styles.headerTop}>
           <TouchableOpacity
@@ -226,6 +228,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 14,
     padding: 16,
+    
   },
   headerTop: {
     alignItems: "flex-start",

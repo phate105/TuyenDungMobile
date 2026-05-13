@@ -138,7 +138,7 @@ export default function PendingJobsScreen() {
       </Pressable>
     );
   }
-
+  
   return (
     <Screen>
       {loading ? (
@@ -271,6 +271,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 40,
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 0,
   },
   card: {
     marginHorizontal: 16,

@@ -27,10 +27,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 0,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
+    paddingTop: 30,
   },
 });

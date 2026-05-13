@@ -99,7 +99,7 @@ export default function CompanyProfileScreen({ user, navigation }) {
   }
 
   return (
-    <Screen scroll contentContainerStyle={styles.scrollContent}>
+    <Screen scroll edges={["top", "left", "right",]} contentContainerStyle={styles.scrollContent }>
       <View style={styles.header}>
         <Text style={styles.title}>Hồ sơ công ty</Text>
         <Text style={styles.subtitle}>Cập nhật thông tin để thu hút ứng viên</Text>
@@ -186,12 +186,10 @@ function Field({ children, label, icon }) {
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 40,
+    paddingTop: 20,
   },
   header: {
     marginBottom: 24,
-    paddingTop: 16,
   },
   title: {
     color: COLORS.text,

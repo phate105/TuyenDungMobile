@@ -205,7 +205,7 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    paddingTop: 10,
+    paddingTop: 20,
   },
   titleSection: {
     paddingHorizontal: 16,

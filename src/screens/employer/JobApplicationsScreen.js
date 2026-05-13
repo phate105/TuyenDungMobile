@@ -8,6 +8,8 @@ import StatusBadge from "../../components/StatusBadge";
 import { COLORS, RADII } from "../../constants/theme";
 import { employerService } from "../../services/employerService";
 
+const PAGE_SIZE = 10;
+
 const applicationStatusLabels = {
   submitted: "Đã nộp",
   under_review: "Xem xét",
@@ -21,6 +23,8 @@ export default function JobApplicationsScreen({ user }) {
   const { jobId, jobTitle } = route.params;
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [page, setPage] = useState(1);
 
   useFocusEffect(
     useCallback(() => {
@@ -139,6 +143,33 @@ export default function JobApplicationsScreen({ user }) {
   );
 }
 
+function PaginationControls({ page, totalPages, onNext, onPrevious }) {
+  return (
+      <View style={styles.pagination}>
+        <Pressable 
+          disabled={page === 1} 
+          onPress={onPrevious} 
+          style={[styles.pageButton, page === 1 && styles.disabled]}
+        >
+          <Ionicons name="chevron-back" size={20} color={page === 1 ? COLORS.muted : COLORS.text} />
+        </Pressable>
+        
+        <View style={styles.pageInfo}>
+          <Text style={styles.pageNumberText}>Trang {page}</Text>
+          <Text style={styles.pageTotalText}>trên {totalPages}</Text>
+        </View>
+  
+        <Pressable 
+          disabled={page === totalPages} 
+          onPress={onNext} 
+          style={[styles.pageButton, page === totalPages && styles.disabled]}
+        >
+          <Ionicons name="chevron-forward" size={20} color={page === totalPages ? COLORS.muted : COLORS.text} />
+        </Pressable>
+      </View>
+  );
+}
+  
 const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 30,
