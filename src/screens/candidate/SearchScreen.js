@@ -100,7 +100,7 @@ export default function SearchScreen({ navigation, route }) {
   }
 
   return (
-    <Screen style={styles.screen}>
+    <Screen edges={["top", "left", "right"]} style={styles.screen}>
       <View style={styles.searchHeader}>
         <TouchableOpacity
           activeOpacity={0.75}
@@ -250,6 +250,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 14,
+    marginTop: 2,
   },
   backButton: {
     alignItems: "center",

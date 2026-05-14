@@ -32,6 +32,13 @@ export const LABELS = {
     cvManagement: "Quản lý CV",
     employerHome: "Nhà tuyển dụng",
     adminHome: "Quản trị viên",
+    companyDetail: "Chi tiết công ty",
+    companyProfile: "Hồ sơ công ty",
+    jobApplications: "Ứng viên ứng tuyển",
+    applicantCV: "Hồ sơ ứng viên",
+    adminApplications: "Đơn ứng tuyển",
+    adminUsers: "Tài khoản",
+    adminJobs: "Tin tuyển dụng",
   },
   buttons: {
     login: "Đăng nhập",
@@ -57,7 +64,7 @@ export const STATUS_LABELS = {
   approved: "Đã duyệt",
   rejected: "Bị từ chối",
   submitted: "Đã nộp",
-  viewed: "Xem xét",
+  viewed: "Đã xem",
   suitable: "Phù hợp",
   active: "Hoạt động",
   locked: "Bị khóa",
@@ -74,6 +81,8 @@ export const WORK_TYPE_LABELS = {
   "Part-time": "Bán thời gian",
   Remote: "Từ xa",
   Hybrid: "Kết hợp",
+  Contract: "Hợp đồng",
+  Internship: "Thực tập",
 };
 
 export function getStatusLabel(status) {

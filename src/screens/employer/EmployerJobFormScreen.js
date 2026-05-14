@@ -4,7 +4,7 @@ import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import PrimaryButton from "../../components/PrimaryButton";
 import Screen from "../../components/Screen";
 import SelectField from "../../components/SelectField";
-import { COLORS } from "../../constants/theme";
+import { COLORS, RADII } from "../../constants/theme";
 import { employerService } from "../../services/employerService";
 import { jobService } from "../../services/jobService";
 
@@ -23,6 +23,8 @@ const workTypeOptions = [
   { label: "Bán thời gian", value: "Part-time" },
   { label: "Từ xa", value: "Remote" },
   { label: "Kết hợp", value: "Hybrid" },
+  { label: "Hợp đồng", value: "Contract" },
+  { label: "Thực tập", value: "Internship" },
 ];
 
 export default function EmployerJobFormScreen({ navigation, route, user }) {
@@ -32,24 +34,15 @@ export default function EmployerJobFormScreen({ navigation, route, user }) {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const categoryOptions = useMemo(
-    () => categories.map((item) => ({ label: item.name, value: item.id })),
-    [categories]
-  );
-  const locationOptions = useMemo(
-    () => locations.map((item) => ({ label: item.name, value: item.id })),
-    [locations]
-  );
+  const categoryOptions = useMemo(() => categories.map((item) => ({ label: item.name, value: item.id })), [categories]);
+  const locationOptions = useMemo(() => locations.map((item) => ({ label: item.name, value: item.id })), [locations]);
 
   useEffect(() => {
     let active = true;
 
     async function loadData() {
       try {
-        const [categoryRows, locationRows] = await Promise.all([
-          jobService.getCategories(),
-          jobService.getLocations(),
-        ]);
+        const [categoryRows, locationRows] = await Promise.all([jobService.getCategories(), jobService.getLocations()]);
 
         if (!active) {
           return;
@@ -60,7 +53,6 @@ export default function EmployerJobFormScreen({ navigation, route, user }) {
 
         if (jobId) {
           const job = await employerService.getJobById(user.id, jobId);
-
           if (job && active) {
             setForm({
               title: job.title || "",
@@ -73,13 +65,12 @@ export default function EmployerJobFormScreen({ navigation, route, user }) {
             });
           }
         }
-      } catch (err) {
-        Alert.alert("Lỗi", err.message);
+      } catch (error) {
+        Alert.alert("Lỗi", error.message || "Không thể tải dữ liệu form.");
       }
     }
 
     loadData();
-
     return () => {
       active = false;
     };
@@ -101,76 +92,80 @@ export default function EmployerJobFormScreen({ navigation, route, user }) {
 
       Alert.alert("Thành công", jobId ? "Đã cập nhật tin tuyển dụng." : "Đã tạo tin tuyển dụng.");
       navigation.goBack();
-    } catch (err) {
-      Alert.alert("Lỗi", err.message);
+    } catch (error) {
+      Alert.alert("Lỗi", error.message || "Không thể lưu tin tuyển dụng.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Screen scroll>
+    <Screen scroll contentContainerStyle={styles.content}>
       <View style={styles.form}>
         <Field label="Tên công việc">
           <TextInput
+            value={form.title}
             onChangeText={(value) => updateField("title", value)}
             placeholder="Nhập tên công việc"
+            placeholderTextColor={COLORS.mutedLight}
             style={styles.input}
-            value={form.title}
           />
         </Field>
 
         <SelectField
           label="Ngành nghề"
-          onChange={(value) => updateField("categoryId", value)}
           options={categoryOptions}
           placeholder="Chọn ngành nghề"
           selectedValue={form.categoryId}
+          onChange={(value) => updateField("categoryId", value)}
         />
 
         <SelectField
           label="Địa điểm"
-          onChange={(value) => updateField("locationId", value)}
           options={locationOptions}
           placeholder="Chọn địa điểm"
           selectedValue={form.locationId}
+          onChange={(value) => updateField("locationId", value)}
         />
 
         <Field label="Mức lương">
           <TextInput
+            value={form.salary}
             onChangeText={(value) => updateField("salary", value)}
             placeholder="Ví dụ: 10 - 15 triệu"
+            placeholderTextColor={COLORS.mutedLight}
             style={styles.input}
-            value={form.salary}
           />
         </Field>
 
         <SelectField
           label="Hình thức làm việc"
-          onChange={(value) => updateField("workType", value)}
           options={workTypeOptions}
           selectedValue={form.workType}
+          onChange={(value) => updateField("workType", value)}
         />
 
         <Field label="Mô tả công việc">
           <TextInput
             multiline
+            value={form.description}
             onChangeText={(value) => updateField("description", value)}
             placeholder="Nhập mô tả công việc"
+            placeholderTextColor={COLORS.mutedLight}
             style={[styles.input, styles.textArea]}
             textAlignVertical="top"
-            value={form.description}
           />
         </Field>
 
         <Field label="Yêu cầu công việc">
           <TextInput
             multiline
+            value={form.requirements}
             onChangeText={(value) => updateField("requirements", value)}
             placeholder="Nhập yêu cầu công việc"
+            placeholderTextColor={COLORS.mutedLight}
             style={[styles.input, styles.textArea]}
             textAlignVertical="top"
-            value={form.requirements}
           />
         </Field>
 
@@ -191,6 +186,11 @@ function Field({ children, label }) {
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
   form: {
     gap: 14,
   },
@@ -205,13 +205,13 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
-    borderRadius: 8,
+    borderRadius: RADII.md,
     borderWidth: 1,
     color: COLORS.text,
     fontSize: 15,
     minHeight: 50,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   textArea: {
     minHeight: 110,

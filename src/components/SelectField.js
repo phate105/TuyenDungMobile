@@ -10,8 +10,10 @@ export default function SelectField({
   selectedValue,
   onChange,
   placeholder = "Chọn",
+  variant = "default",
 }) {
   const [visible, setVisible] = useState(false);
+  const isUnderline = variant === "underline";
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === selectedValue),
@@ -29,9 +31,19 @@ export default function SelectField({
 
       <Pressable
         onPress={() => setVisible(true)}
-        style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed]}
+        style={({ pressed }) => [
+          styles.trigger,
+          isUnderline && styles.triggerUnderline,
+          pressed && (isUnderline ? styles.triggerUnderlinePressed : styles.triggerPressed),
+        ]}
       >
-        <Text style={[styles.triggerText, !selectedOption && styles.placeholderText]}>
+        <Text
+          style={[
+            styles.triggerText,
+            isUnderline && styles.triggerTextUnderline,
+            !selectedOption && styles.placeholderText,
+          ]}
+        >
           {selectedOption?.label || placeholder}
         </Text>
         <Ionicons color={COLORS.muted} name="chevron-down" size={18} />
@@ -39,10 +51,11 @@ export default function SelectField({
 
       <Modal animationType="slide" onRequestClose={() => setVisible(false)} transparent visible={visible}>
         <Pressable onPress={() => setVisible(false)} style={styles.backdrop} />
+
         <View style={styles.sheet}>
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>{label}</Text>
-            <Pressable onPress={() => setVisible(false)}>
+            <Pressable onPress={() => setVisible(false)} style={({ pressed }) => pressed && styles.closePressed}>
               <Text style={styles.closeText}>Đóng</Text>
             </Pressable>
           </View>
@@ -57,13 +70,10 @@ export default function SelectField({
                   onPress={() => handleSelect(option.value)}
                   style={({ pressed }) => [
                     styles.option,
-                    selected && styles.optionSelected,
                     pressed && styles.optionPressed,
                   ]}
                 >
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                    {option.label}
-                  </Text>
+                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{option.label}</Text>
                   {selected ? <Ionicons color={COLORS.action} name="checkmark" size={18} /> : null}
                 </Pressable>
               );
@@ -95,8 +105,20 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: 14,
   },
+  triggerUnderline: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomColor: COLORS.border,
+    borderBottomWidth: 1,
+    minHeight: 48,
+    paddingHorizontal: 0,
+  },
   triggerPressed: {
     backgroundColor: COLORS.surfaceMuted,
+  },
+  triggerUnderlinePressed: {
+    opacity: 0.76,
   },
   triggerText: {
     color: COLORS.text,
@@ -104,11 +126,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingRight: 12,
   },
+  triggerTextUnderline: {
+    fontSize: 16,
+    paddingVertical: 10,
+  },
   placeholderText: {
     color: COLORS.mutedLight,
   },
   backdrop: {
-    backgroundColor: "rgba(0, 0, 0, 0.32)",
+    backgroundColor: "rgba(0, 0, 0, 0.36)",
     flex: 1,
   },
   sheet: {
@@ -131,12 +157,15 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: COLORS.text,
     fontSize: 17,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   closeText: {
     color: COLORS.muted,
     fontSize: 14,
     fontWeight: "700",
+  },
+  closePressed: {
+    opacity: 0.72,
   },
   list: {
     maxHeight: 360,
@@ -153,16 +182,14 @@ const styles = StyleSheet.create({
   optionPressed: {
     backgroundColor: COLORS.surfaceMuted,
   },
-  optionSelected: {
-    backgroundColor: "#F7FBFC",
-  },
   optionText: {
     color: COLORS.text,
     flex: 1,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   optionTextSelected: {
     color: COLORS.action,
+    fontWeight: "700",
   },
 });

@@ -7,6 +7,13 @@ function requireValue(value, message) {
   }
 }
 
+const EMPLOYER_APPLICATION_STATUSES = [
+  APPLICATION_STATUS.SUBMITTED,
+  APPLICATION_STATUS.UNDER_REVIEW,
+  APPLICATION_STATUS.SUITABLE,
+  APPLICATION_STATUS.REJECTED,
+];
+
 const jobSelectQuery = `
   SELECT
     j.id,
@@ -60,8 +67,8 @@ const applicationSelectQuery = `
 
 export async function getCompanyProfile(employerId) {
   const db = await getDatabase();
-
-  return db.getFirstAsync("SELECT * FROM company_profiles WHERE user_id = ? LIMIT 1", [employerId]);
+  const row = await db.getFirstAsync("SELECT * FROM company_profiles WHERE user_id = ? LIMIT 1", [employerId]);
+  return row ? sanitizeCompanyProfile(row) : null;
 }
 
 export async function saveCompanyProfile(employerId, data) {
@@ -74,14 +81,27 @@ export async function saveCompanyProfile(employerId, data) {
   await db.runAsync(
     `
       INSERT INTO company_profiles
-        (user_id, company_name, company_field, company_address, description, updated_at)
+        (
+          user_id,
+          company_name,
+          company_field,
+          company_address,
+          description,
+          website,
+          company_size,
+          contact_person,
+          updated_at
+        )
       VALUES
-        (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(user_id) DO UPDATE SET
         company_name = excluded.company_name,
         company_field = excluded.company_field,
         company_address = excluded.company_address,
         description = excluded.description,
+        website = excluded.website,
+        company_size = excluded.company_size,
+        contact_person = excluded.contact_person,
         updated_at = CURRENT_TIMESTAMP
     `,
     [
@@ -90,20 +110,37 @@ export async function saveCompanyProfile(employerId, data) {
       data.companyField.trim(),
       data.companyAddress.trim(),
       data.description?.trim() || "",
+      data.website?.trim() || "",
+      data.companySize?.trim() || "",
+      data.contactPerson?.trim() || "",
     ]
   );
 
   return getCompanyProfile(employerId);
 }
 
-async function getRequiredCompany(employerId) {
-  const company = await getCompanyProfile(employerId);
+export async function updateCompanyAvatar(employerId, avatarUri) {
+  requireValue(avatarUri, "Vui lòng chọn ảnh đại diện.");
+
+  const db = await getDatabase();
+  const company = await db.getFirstAsync("SELECT id FROM company_profiles WHERE user_id = ? LIMIT 1", [
+    employerId,
+  ]);
 
   if (!company) {
     throw new Error("Vui lòng tạo hồ sơ công ty trước.");
   }
 
-  return company;
+  await db.runAsync(
+    `
+      UPDATE company_profiles
+      SET avatar_uri = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ?
+    `,
+    [avatarUri, employerId]
+  );
+
+  return getCompanyProfile(employerId);
 }
 
 export async function getEmployerDashboard(employerId) {
@@ -111,15 +148,25 @@ export async function getEmployerDashboard(employerId) {
   const row = await db.getFirstAsync(
     `
       SELECT
-        SUM(CASE WHEN j.status = ? THEN 1 ELSE 0 END) AS pending_count,
-        SUM(CASE WHEN j.status = ? THEN 1 ELSE 0 END) AS approved_count,
-        SUM(CASE WHEN j.status = ? THEN 1 ELSE 0 END) AS rejected_count,
-        COUNT(a.id) AS application_count
-      FROM jobs j
-      LEFT JOIN applications a ON a.job_id = j.id
-      WHERE j.employer_id = ?
+        (SELECT COUNT(*) FROM jobs WHERE employer_id = ? AND status = ?) AS pending_count,
+        (SELECT COUNT(*) FROM jobs WHERE employer_id = ? AND status = ?) AS approved_count,
+        (SELECT COUNT(*) FROM jobs WHERE employer_id = ? AND status = ?) AS rejected_count,
+        (
+          SELECT COUNT(*)
+          FROM applications a
+          JOIN jobs j ON j.id = a.job_id
+          WHERE j.employer_id = ?
+        ) AS application_count
     `,
-    [JOB_STATUS.PENDING, JOB_STATUS.APPROVED, JOB_STATUS.REJECTED, employerId]
+    [
+      employerId,
+      JOB_STATUS.PENDING,
+      employerId,
+      JOB_STATUS.APPROVED,
+      employerId,
+      JOB_STATUS.REJECTED,
+      employerId,
+    ]
   );
 
   return {
@@ -130,24 +177,43 @@ export async function getEmployerDashboard(employerId) {
   };
 }
 
-export async function getJobsByEmployer(employerId) {
+export async function getJobsByEmployer(employerId, { status, limit = 10, offset = 0 } = {}) {
   const db = await getDatabase();
-
-  return db.getAllAsync(
+  const { where, params } = buildEmployerJobFilter(employerId, status);
+  const pageLimit = Number(limit) > 0 ? Number(limit) : 10;
+  const pageOffset = Number(offset) > 0 ? Number(offset) : 0;
+  const rows = await db.getAllAsync(
     `
       ${jobSelectQuery}
-      WHERE j.employer_id = ?
+      ${where}
       GROUP BY j.id
       ORDER BY j.created_at DESC, j.id DESC
+      LIMIT ? OFFSET ?
     `,
-    [employerId]
+    [...params, pageLimit, pageOffset]
   );
+
+  return rows.map(sanitizeJobRecord);
+}
+
+export async function getJobCountByEmployer(employerId, status) {
+  const db = await getDatabase();
+  const { where, params } = buildEmployerJobFilter(employerId, status);
+  const row = await db.getFirstAsync(
+    `
+      SELECT COUNT(*) AS total
+      FROM jobs j
+      ${where}
+    `,
+    params
+  );
+
+  return row?.total || 0;
 }
 
 export async function getJobById(employerId, jobId) {
   const db = await getDatabase();
-
-  return db.getFirstAsync(
+  const row = await db.getFirstAsync(
     `
       ${jobSelectQuery}
       WHERE j.employer_id = ? AND j.id = ?
@@ -156,22 +222,8 @@ export async function getJobById(employerId, jobId) {
     `,
     [employerId, jobId]
   );
-}
 
-function validateJobData(data) {
-  requireValue(data.title, "Vui lòng nhập tên công việc.");
-  requireValue(data.description, "Vui lòng nhập mô tả công việc.");
-  requireValue(data.requirements, "Vui lòng nhập yêu cầu công việc.");
-  requireValue(data.salary, "Vui lòng nhập mức lương.");
-  requireValue(data.workType, "Vui lòng chọn hình thức làm việc.");
-
-  if (!data.categoryId) {
-    throw new Error("Vui lòng chọn ngành nghề.");
-  }
-
-  if (!data.locationId) {
-    throw new Error("Vui lòng chọn địa điểm.");
-  }
+  return row ? sanitizeJobRecord(row) : null;
 }
 
 export async function createJob(employerId, data) {
@@ -244,23 +296,55 @@ export async function updateJob(employerId, jobId, data) {
   );
 }
 
-export async function getApplicationsByJob(employerId, jobId) {
+export async function deleteJob(employerId, jobId) {
   const db = await getDatabase();
+  const job = await getJobById(employerId, jobId);
 
-  return db.getAllAsync(
+  if (!job) {
+    throw new Error("Không tìm thấy tin tuyển dụng.");
+  }
+
+  await db.runAsync("DELETE FROM applications WHERE job_id = ?", [jobId]);
+  await db.runAsync("DELETE FROM jobs WHERE id = ? AND employer_id = ?", [jobId, employerId]);
+}
+
+export async function getApplicationsByJob(employerId, jobId, { status, limit = 10, offset = 0 } = {}) {
+  const db = await getDatabase();
+  const { where, params } = buildEmployerApplicationsByJobFilter(employerId, jobId, status);
+  const pageLimit = Number(limit) > 0 ? Number(limit) : 10;
+  const pageOffset = Number(offset) > 0 ? Number(offset) : 0;
+  const rows = await db.getAllAsync(
     `
       ${applicationSelectQuery}
-      WHERE j.employer_id = ? AND a.job_id = ?
+      ${where}
       ORDER BY a.created_at DESC, a.id DESC
+      LIMIT ? OFFSET ?
     `,
-    [employerId, jobId]
+    [...params, pageLimit, pageOffset]
   );
+
+  return rows.map(sanitizeApplicationRecord);
+}
+
+export async function getApplicationCountByJob(employerId, jobId, status) {
+  const db = await getDatabase();
+  const { where, params } = buildEmployerApplicationsByJobFilter(employerId, jobId, status);
+  const row = await db.getFirstAsync(
+    `
+      SELECT COUNT(*) AS total
+      FROM applications a
+      JOIN jobs j ON j.id = a.job_id
+      ${where}
+    `,
+    params
+  );
+
+  return row?.total || 0;
 }
 
 export async function getApplicationById(employerId, applicationId) {
   const db = await getDatabase();
-
-  return db.getFirstAsync(
+  const row = await db.getFirstAsync(
     `
       ${applicationSelectQuery}
       WHERE j.employer_id = ? AND a.id = ?
@@ -268,17 +352,12 @@ export async function getApplicationById(employerId, applicationId) {
     `,
     [employerId, applicationId]
   );
+
+  return row ? sanitizeApplicationRecord(row) : null;
 }
 
 export async function updateApplicationStatus(employerId, applicationId, status) {
-  const allowedStatuses = [
-    APPLICATION_STATUS.SUBMITTED,
-    APPLICATION_STATUS.UNDER_REVIEW,
-    APPLICATION_STATUS.SUITABLE,
-    APPLICATION_STATUS.REJECTED,
-  ];
-
-  if (!allowedStatuses.includes(status)) {
+  if (!EMPLOYER_APPLICATION_STATUSES.includes(status)) {
     throw new Error("Trạng thái đơn ứng tuyển không hợp lệ.");
   }
 
@@ -289,7 +368,6 @@ export async function updateApplicationStatus(employerId, applicationId, status)
   }
 
   const db = await getDatabase();
-
   await db.runAsync(
     `
       UPDATE applications
@@ -299,41 +377,13 @@ export async function updateApplicationStatus(employerId, applicationId, status)
     [status, applicationId]
   );
 }
-// Hàm reset hồ sơ nhà tuyển dụng
-export async function resetCompanyProfile(userId) {
+
+export async function getApplicationsByEmployer(employerId, { status, limit = 10, offset = 0 } = {}) {
   const db = await getDatabase();
-  try {
-    // 1. Tìm ID công ty của người dùng này
-    const company = await db.getFirstAsync(
-      "SELECT id FROM company_profiles WHERE user_id = ?", 
-      [userId]
-    );
-
-    if (company) {
-      // 2. Xóa các đơn ứng tuyển liên quan đến các công việc của công ty này (Khóa ngoại)
-      await db.runAsync(
-        "DELETE FROM applications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = ?)",
-        [company.id]
-      );
-
-      // 3. Xóa tất cả tin tuyển dụng của công ty này
-      await db.runAsync("DELETE FROM jobs WHERE company_id = ?", [company.id]);
-
-      // 4. Cuối cùng mới xóa hồ sơ công ty
-      await db.runAsync("DELETE FROM company_profiles WHERE id = ?", [company.id]);
-      
-      return { success: true };
-    }
-    return { success: false, message: "Không tìm thấy hồ sơ để xóa." };
-  } catch (error) {
-    throw new Error("Lỗi khi reset hồ sơ: " + error.message);
-  }
-}
-
-export async function getApplicationsByEmployer(employerId) {
-  const db = await getDatabase();
-
-  return db.getAllAsync(
+  const { where, params } = buildEmployerApplicationFilter(employerId, status);
+  const pageLimit = Number(limit) > 0 ? Number(limit) : 10;
+  const pageOffset = Number(offset) > 0 ? Number(offset) : 0;
+  const rows = await db.getAllAsync(
     `
       SELECT
         a.id,
@@ -342,28 +392,225 @@ export async function getApplicationsByEmployer(employerId) {
         a.status,
         a.created_at,
         j.title AS job_title,
-        u.full_name AS candidate_name
+        u.full_name AS candidate_name,
+        u.email AS candidate_email,
+        u.phone AS candidate_phone
       FROM applications a
       JOIN jobs j ON j.id = a.job_id
       JOIN users u ON u.id = a.candidate_id
-      WHERE j.employer_id = ?
-      ORDER BY a.created_at DESC
+      ${where}
+      ORDER BY a.created_at DESC, a.id DESC
+      LIMIT ? OFFSET ?
     `,
-    [employerId]
+    [...params, pageLimit, pageOffset]
   );
+
+  return rows.map((row) => ({
+    ...row,
+    candidate_name: normalizeText(row.candidate_name),
+    candidate_email: normalizeText(row.candidate_email),
+    candidate_phone: normalizeText(row.candidate_phone),
+    job_title: normalizeText(row.job_title),
+  }));
+}
+
+export async function getApplicationCountByEmployer(employerId, status) {
+  const db = await getDatabase();
+  const { where, params } = buildEmployerApplicationFilter(employerId, status);
+  const row = await db.getFirstAsync(
+    `
+      SELECT COUNT(*) AS total
+      FROM applications a
+      JOIN jobs j ON j.id = a.job_id
+      ${where}
+    `,
+    params
+  );
+
+  return row?.total || 0;
+}
+
+async function getRequiredCompany(employerId) {
+  const company = await getCompanyProfile(employerId);
+
+  if (!company) {
+    throw new Error("Vui lòng tạo hồ sơ công ty trước.");
+  }
+
+  return company;
+}
+
+function validateJobData(data) {
+  requireValue(data.title, "Vui lòng nhập tên công việc.");
+  requireValue(data.description, "Vui lòng nhập mô tả công việc.");
+  requireValue(data.requirements, "Vui lòng nhập yêu cầu công việc.");
+  requireValue(data.salary, "Vui lòng nhập mức lương.");
+  requireValue(data.workType, "Vui lòng chọn hình thức làm việc.");
+
+  if (!data.categoryId) {
+    throw new Error("Vui lòng chọn ngành nghề.");
+  }
+
+  if (!data.locationId) {
+    throw new Error("Vui lòng chọn địa điểm.");
+  }
+}
+
+function buildEmployerJobFilter(employerId, status) {
+  const where = ["WHERE j.employer_id = ?"];
+  const params = [employerId];
+
+  if (status && status !== "all") {
+    where.push("AND j.status = ?");
+    params.push(status);
+  }
+
+  return { where: where.join(" "), params };
+}
+
+function buildEmployerApplicationFilter(employerId, status) {
+  const where = ["WHERE j.employer_id = ?"];
+  const params = [employerId];
+
+  if (status && status !== "all") {
+    where.push("AND a.status = ?");
+    params.push(status);
+  }
+
+  return { where: where.join(" "), params };
+}
+
+function buildEmployerApplicationsByJobFilter(employerId, jobId, status) {
+  const where = ["WHERE j.employer_id = ? AND a.job_id = ?"];
+  const params = [employerId, jobId];
+
+  if (status && status !== "all") {
+    where.push("AND a.status = ?");
+    params.push(status);
+  }
+
+  return { where: where.join(" "), params };
+}
+
+function sanitizeCompanyProfile(profile) {
+  return {
+    ...profile,
+    avatar_uri: normalizeText(profile.avatar_uri),
+    company_address: normalizeText(profile.company_address),
+    company_field: normalizeText(profile.company_field),
+    company_name: normalizeText(profile.company_name),
+    description: normalizeLongText(profile.description),
+    company_size: normalizeText(profile.company_size),
+    contact_person: normalizeText(profile.contact_person),
+    logo_path: normalizeText(profile.logo_path),
+    website: normalizeText(profile.website),
+  };
+}
+
+function sanitizeJobRecord(job) {
+  return {
+    ...job,
+    category_name: normalizeText(job.category_name),
+    company_address: normalizeText(job.company_address),
+    company_field: normalizeText(job.company_field),
+    company_name: normalizeText(job.company_name),
+    description: normalizeLongText(job.description),
+    location_name: normalizeText(job.location_name),
+    reject_reason: normalizeLongText(job.reject_reason),
+    requirements: normalizeLongText(job.requirements),
+    salary: normalizeText(job.salary),
+    title: normalizeText(job.title),
+  };
+}
+
+function sanitizeApplicationRecord(application) {
+  return {
+    ...application,
+    candidate_email: normalizeText(application.candidate_email),
+    candidate_name: normalizeText(application.candidate_name),
+    candidate_phone: normalizeText(application.candidate_phone),
+    cover_letter: normalizeLongText(application.cover_letter),
+    job_title: normalizeText(application.job_title),
+  };
+}
+
+function normalizeLongText(value) {
+  if (typeof value !== "string") {
+    return value || "";
+  }
+
+  let result = value.trim();
+
+  for (let index = 0; index < 3; index += 1) {
+    const next = decodeMojibake(result);
+
+    if (next === result) {
+      break;
+    }
+
+    result = next;
+  }
+
+  return result
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function normalizeText(value) {
+  if (typeof value !== "string") {
+    return value || "";
+  }
+
+  let result = value.trim();
+
+  for (let index = 0; index < 3; index += 1) {
+    const next = decodeMojibake(result);
+
+    if (next === result) {
+      break;
+    }
+
+    result = next;
+  }
+
+  return result.replace(/\s+/g, " ").trim();
+}
+
+function decodeMojibake(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  if (!/[ÃÆÄÅÇÐÑÒÓÔÕÖØÙÚÛÜÝÞß]|á»|áº|â€¢|�/.test(value)) {
+    return value;
+  }
+
+  try {
+    return decodeURIComponent(escape(value));
+  } catch (error) {
+    return value;
+  }
 }
 
 export const employerService = {
-  getCompanyProfile,
-  saveCompanyProfile,
-  getEmployerDashboard,
-  getJobsByEmployer,
-  getJobById,
   createJob,
-  updateJob,
-  getApplicationsByJob,
+  deleteJob,
   getApplicationById,
-  updateApplicationStatus,
-  resetCompanyProfile,
+  getApplicationCountByEmployer,
+  getApplicationCountByJob,
   getApplicationsByEmployer,
+  getApplicationsByJob,
+  getCompanyProfile,
+  getEmployerDashboard,
+  getJobById,
+  getJobCountByEmployer,
+  getJobsByEmployer,
+  saveCompanyProfile,
+  updateCompanyAvatar,
+  updateApplicationStatus,
+  updateJob,
 };

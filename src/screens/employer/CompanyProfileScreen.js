@@ -1,276 +1,623 @@
-import { useEffect, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 
-import Screen from "../../components/Screen";
 import PrimaryButton from "../../components/PrimaryButton";
-import { COLORS, RADII } from "../../constants/theme";
+import Screen from "../../components/Screen";
+import { getCompanyLogoSource } from "../../constants/companyLogos";
+import { COLORS, RADII, SHADOWS } from "../../constants/theme";
 import { employerService } from "../../services/employerService";
-import { getDatabase } from "../../database/database";
 
-const initialForm = {
+const emptyForm = {
   companyName: "",
   companyField: "",
   companyAddress: "",
+  website: "",
+  companySize: "",
+  contactPerson: "",
   description: "",
 };
 
-export default function CompanyProfileScreen({ user, navigation }) {
-  const [form, setForm] = useState(initialForm);
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
+export default function CompanyProfileScreen({ user }) {
+  const [profile, setProfile] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [updatingAvatar, setUpdatingAvatar] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    // Ẩn thanh header mặc định để dùng header tự định nghĩa bên trong Screen
-    navigation.setOptions({ headerShown: false });
-    
-    let active = true;
-    async function loadProfile() {
-      try {
-        setFetching(true);
-        const profile = await employerService.getCompanyProfile(user.id);
-        if (profile && active) {
-          setForm({
-            companyName: profile.company_name || "",
-            companyField: profile.company_field || "",
-            companyAddress: profile.company_address || "",
-            description: profile.description || "",
-          });
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      async function run() {
+        try {
+          setLoading(true);
+          const current = await employerService.getCompanyProfile(user.id);
+
+          if (!active) {
+            return;
+          }
+
+          setProfile(current);
+          setForm(mapProfileToForm(current));
+        } catch (error) {
+          if (active) {
+            Alert.alert("Lỗi", error.message || "Không thể tải hồ sơ công ty.");
+          }
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
         }
-      } catch (err) {
-        Alert.alert("Lỗi", err.message);
-      } finally {
-        setFetching(false);
       }
+
+      run();
+
+      return () => {
+        active = false;
+      };
+    }, [user.id])
+  );
+
+  async function handlePickAvatar() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Quyền truy cập ảnh",
+          "Vui lòng cho phép ứng dụng truy cập thư viện ảnh để đổi avatar."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        mediaTypes: ["images"],
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      setUpdatingAvatar(true);
+      const updated = await employerService.updateCompanyAvatar(user.id, result.assets[0].uri);
+      setProfile(updated);
+      setForm(mapProfileToForm(updated));
+      Alert.alert("Thành công", "Đã cập nhật ảnh đại diện công ty.");
+    } catch (error) {
+      Alert.alert("Lỗi", error.message || "Không thể cập nhật avatar.");
+    } finally {
+      setUpdatingAvatar(false);
     }
-    loadProfile();
-    return () => { active = false; };
-  }, [user.id, navigation]);
+  }
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   async function handleSave() {
+    if (!form.companyName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập tên công ty.");
+      return;
+    }
+
+    if (!form.companyField.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập lĩnh vực công ty.");
+      return;
+    }
+
+    if (!form.companyAddress.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập địa chỉ công ty.");
+      return;
+    }
+
     try {
-      setLoading(true);
-      await employerService.saveCompanyProfile(user.id, form);
-      Alert.alert("Thành công", "Hồ sơ doanh nghiệp đã được cập nhật.");
-    } catch (err) {
-      Alert.alert("Lỗi", err.message);
+      setSaving(true);
+      const updated = await employerService.saveCompanyProfile(user.id, form);
+      setProfile(updated);
+      setForm(mapProfileToForm(updated));
+      setIsEditing(false);
+      Alert.alert("Thành công", "Đã lưu hồ sơ công ty.");
+    } catch (error) {
+      Alert.alert("Lỗi", error.message || "Không thể lưu hồ sơ công ty.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
-  async function handleReset() {
-    Alert.alert(
-      "Xác nhận làm mới",
-      "Hành động này sẽ xóa toàn bộ hồ sơ và dữ liệu liên quan. Bạn có chắc chắn không?",
-      [
-        { text: "Hủy", style: "cancel" },
-        { 
-          text: "Xác nhận xóa", 
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await employerService.resetCompanyProfile(user.id); 
-              setForm(initialForm);
-              Alert.alert("Thành công", "Dữ liệu đã được làm mới.");
-            } catch (err) {
-              Alert.alert("Lỗi", err.message);
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  function handleCancel() {
+    setIsEditing(false);
+    setForm(mapProfileToForm(profile));
   }
 
-  if (fetching) {
+  if (loading) {
     return (
-      <Screen style={styles.centerBox}>
-        <ActivityIndicator color={COLORS.action} size="large" />
-        <Text style={styles.mutedText}>Đang tải dữ liệu...</Text>
+      <Screen style={styles.screen} edges={["top", "left", "right"]}>
+        <View style={styles.centerBox}>
+          <ActivityIndicator color={COLORS.action} size="large" />
+          <Text style={styles.loadingText}>Đang tải hồ sơ công ty...</Text>
+        </View>
       </Screen>
     );
   }
 
+  const companyName = profile?.company_name || form.companyName || "Hồ sơ công ty";
+  const companyField = profile?.company_field || form.companyField || "Chưa cập nhật lĩnh vực";
+  const companyAddress = profile?.company_address || form.companyAddress || "Chưa cập nhật địa chỉ";
+  const avatarSource = profile?.avatar_uri
+    ? { uri: profile.avatar_uri }
+    : getCompanyLogoSource(profile?.logo_path);
+  const initials = getCompanyInitials(companyName);
+
   return (
-    <Screen scroll edges={["top", "left", "right",]} contentContainerStyle={styles.scrollContent }>
-      <View style={styles.header}>
-        <Text style={styles.title}>Hồ sơ công ty</Text>
-        <Text style={styles.subtitle}>Cập nhật thông tin để thu hút ứng viên</Text>
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      style={styles.screen}
+      contentContainerStyle={styles.scrollContent}
+    >
+      <View style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <Pressable
+            onPress={handlePickAvatar}
+            disabled={updatingAvatar}
+            style={({ pressed }) => [styles.avatarWrap, pressed && styles.pressed]}
+          >
+            {avatarSource ? (
+              <Image source={avatarSource} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            )}
+            <View style={styles.cameraBadge}>
+              {updatingAvatar ? (
+                <ActivityIndicator color={COLORS.surface} size="small" />
+              ) : (
+                <Ionicons color={COLORS.surface} name="camera-outline" size={14} />
+              )}
+            </View>
+          </Pressable>
+
+          <View style={styles.heroInfo}>
+            <Text style={styles.companyName} numberOfLines={2}>
+              {companyName}
+            </Text>
+            <Text style={styles.companyField} numberOfLines={2}>
+              {companyField}
+            </Text>
+            <View style={styles.addressRow}>
+              <Ionicons color={COLORS.action} name="location-outline" size={15} />
+              <Text style={styles.addressText} numberOfLines={2}>
+                {companyAddress}
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => setIsEditing(true)}
+            style={({ pressed }) => [styles.editIconButton, pressed && styles.pressed]}
+          >
+            <Ionicons color={COLORS.text} name="create-outline" size={18} />
+          </Pressable>
+        </View>
+
+        <Text style={styles.avatarHint}>Bấm vào ảnh để đổi avatar local.</Text>
       </View>
 
-      {/* Form Card được tinh chỉnh padding và border */}
-      <View style={styles.card}>
-        <Field label="Tên công ty" icon="business">
-          <TextInput
-            onChangeText={(value) => updateField("companyName", value)}
-            placeholder="Ví dụ: Công ty Công nghệ X-Soft"
-            placeholderTextColor={COLORS.muted + "80"}
-            style={styles.input}
-            value={form.companyName}
-          />
-        </Field>
+      {!isEditing ? (
+        <>
+          <SectionCard title="Thông tin công ty" icon="business-outline">
+            <InfoRow label="Lĩnh vực" value={companyField} />
+            <Divider />
+            <InfoRow label="Địa chỉ" value={companyAddress} />
+            <Divider />
+            <InfoRow label="Website" value={profile?.website || "Chưa cập nhật"} />
+            <Divider />
+            <InfoRow label="Quy mô" value={profile?.company_size || "Chưa cập nhật"} />
+            <Divider />
+            <InfoRow label="Người liên hệ" value={profile?.contact_person || "Chưa cập nhật"} />
+          </SectionCard>
 
-        <Field label="Lĩnh vực kinh doanh" icon="layers">
-          <TextInput
-            onChangeText={(value) => updateField("companyField", value)}
-            placeholder="Ví dụ: Phát triển phần mềm"
-            placeholderTextColor={COLORS.muted + "80"}
-            style={styles.input}
-            value={form.companyField}
-          />
-        </Field>
+          <SectionCard title="Giới thiệu" icon="document-text-outline">
+            <Text style={styles.description}>
+              {profile?.description ||
+                "Công ty chưa cập nhật phần giới thiệu. Bấm chỉnh sửa để bổ sung thông tin thương hiệu."}
+            </Text>
+          </SectionCard>
 
-        <Field label="Địa chỉ trụ sở" icon="location">
-          <TextInput
-            onChangeText={(value) => updateField("companyAddress", value)}
-            placeholder="Số nhà, tên đường, quận/huyện..."
-            placeholderTextColor={COLORS.muted + "80"}
-            style={styles.input}
-            value={form.companyAddress}
-          />
-        </Field>
+          <PrimaryButton onPress={() => setIsEditing(true)} title="Chỉnh sửa hồ sơ" />
+        </>
+      ) : (
+        <>
+          <SectionCard title="Chỉnh sửa thông tin" icon="create-outline">
+            <EditField label="Tên công ty *">
+              <TextInput
+                placeholder="Ví dụ: Công ty TNHH ABC"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.companyName}
+                onChangeText={(value) => updateField("companyName", value)}
+                style={styles.input}
+              />
+            </EditField>
 
-        <Field label="Giới thiệu về công ty" icon="document-text">
-          <TextInput
-            multiline
-            onChangeText={(value) => updateField("description", value)}
-            placeholder="Chia sẻ về môi trường và văn hóa làm việc của bạn..."
-            placeholderTextColor={COLORS.muted + "80"}
-            style={[styles.input, styles.textArea]}
-            textAlignVertical="top"
-            value={form.description}
-          />
-        </Field>
-      </View>
+            <EditField label="Lĩnh vực *">
+              <TextInput
+                placeholder="Ví dụ: Công nghệ thông tin"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.companyField}
+                onChangeText={(value) => updateField("companyField", value)}
+                style={styles.input}
+              />
+            </EditField>
 
-      {/* Nút hành động */}
-      <View style={styles.buttonGroup}>
-        <PrimaryButton 
-          loading={loading} 
-          onPress={handleSave} 
-          title="Lưu thay đổi" 
-        />
-        
-        <TouchableOpacity 
-          style={[styles.resetButton, loading && { opacity: 0.5 }]} 
-          onPress={handleReset}
-          disabled={loading}
-        >
-          <Ionicons name="refresh-circle-outline" size={20} color={COLORS.danger} />
-          <Text style={styles.resetButtonText}>Xóa & Làm mới toàn bộ</Text>
-        </TouchableOpacity>
-      </View>
+            <EditField label="Địa chỉ *">
+              <TextInput
+                placeholder="Số nhà, đường, quận/huyện, thành phố"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.companyAddress}
+                onChangeText={(value) => updateField("companyAddress", value)}
+                style={styles.input}
+              />
+            </EditField>
+
+            <EditField label="Website">
+              <TextInput
+                placeholder="Ví dụ: https://company.vn"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.website}
+                onChangeText={(value) => updateField("website", value)}
+                style={styles.input}
+              />
+            </EditField>
+
+            <EditField label="Quy mô">
+              <TextInput
+                placeholder="Ví dụ: 50 - 200 nhân sự"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.companySize}
+                onChangeText={(value) => updateField("companySize", value)}
+                style={styles.input}
+              />
+            </EditField>
+
+            <EditField label="Người liên hệ">
+              <TextInput
+                placeholder="Ví dụ: Nguyễn Văn A"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.contactPerson}
+                onChangeText={(value) => updateField("contactPerson", value)}
+                style={styles.input}
+              />
+            </EditField>
+
+            <EditField label="Giới thiệu công ty">
+              <TextInput
+                multiline
+                placeholder="Mô tả ngắn về công ty, môi trường và định hướng phát triển"
+                placeholderTextColor={COLORS.mutedLight}
+                value={form.description}
+                onChangeText={(value) => updateField("description", value)}
+                style={[styles.input, styles.textArea]}
+                textAlignVertical="top"
+              />
+            </EditField>
+          </SectionCard>
+
+          <View style={styles.actionRow}>
+            <Pressable
+              onPress={handleCancel}
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.cancelButtonText}>Hủy</Text>
+            </Pressable>
+
+            <View style={styles.saveButtonWrap}>
+              <PrimaryButton loading={saving} onPress={handleSave} title="Lưu thay đổi" />
+            </View>
+          </View>
+        </>
+      )}
     </Screen>
   );
 }
 
-function Field({ children, label, icon }) {
+function SectionCard({ title, icon, children }) {
   return (
-    <View style={styles.field}>
-      <View style={styles.labelRow}>
-        <Ionicons name={icon} size={18} color={COLORS.action} />
-        <Text style={styles.label}>{label}</Text>
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <View style={styles.sectionIconWrap}>
+            <Ionicons color={COLORS.brand} name={icon} size={18} />
+          </View>
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
       </View>
       {children}
     </View>
   );
 }
 
+function InfoRow({ label, value }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+function EditField({ label, children }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Divider() {
+  return <View style={styles.divider} />;
+}
+
+function mapProfileToForm(profile) {
+  return {
+    companyName: profile?.company_name || "",
+    companyField: profile?.company_field || "",
+    companyAddress: profile?.company_address || "",
+    website: profile?.website || "",
+    companySize: profile?.company_size || "",
+    contactPerson: profile?.contact_person || "",
+    description: profile?.description || "",
+  };
+}
+
+function getCompanyInitials(name = "") {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "CT";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: COLORS.background,
+  },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    gap: 14,
+    paddingBottom: 36,
+    paddingTop: 12,
   },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    color: COLORS.text,
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  subtitle: {
-    color: COLORS.muted,
-    fontSize: 15,
-    marginTop: 4,
-    fontWeight: "500",
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADII.lg,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    // Hiệu ứng đổ bóng đồng bộ
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    gap: 24,
-  },
-  field: {
+  centerBox: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
     gap: 10,
   },
-  labelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  loadingText: {
+    color: COLORS.muted,
+    fontSize: 14,
   },
-  label: {
+
+  heroCard: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    ...SHADOWS.card,
+  },
+  heroTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 14,
+  },
+  avatarWrap: {
+    height: 78,
+    width: 78,
+  },
+  avatarImage: {
+    borderColor: COLORS.border,
+    borderRadius: 39,
+    borderWidth: 1,
+    height: "100%",
+    width: "100%",
+  },
+  avatarFallback: {
+    alignItems: "center",
+    backgroundColor: COLORS.brand,
+    borderColor: COLORS.border,
+    borderRadius: 39,
+    borderWidth: 1,
+    height: "100%",
+    justifyContent: "center",
+    width: "100%",
+  },
+  avatarText: {
+    color: COLORS.surface,
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  cameraBadge: {
+    alignItems: "center",
+    backgroundColor: COLORS.action,
+    borderColor: COLORS.surface,
+    borderRadius: 14,
+    borderWidth: 2,
+    bottom: -2,
+    height: 28,
+    justifyContent: "center",
+    position: "absolute",
+    right: -2,
+    width: 28,
+  },
+  heroInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  companyName: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "800",
+    lineHeight: 28,
+  },
+  companyField: {
+    color: COLORS.muted,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  addressRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 2,
+  },
+  addressText: {
+    color: COLORS.text,
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  editIconButton: {
+    alignItems: "center",
+    backgroundColor: COLORS.surfaceMuted,
+    borderRadius: 12,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  avatarHint: {
+    color: COLORS.mutedLight,
+    fontSize: 12,
+    marginTop: 10,
+  },
+
+  sectionCard: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    ...SHADOWS.card,
+  },
+  sectionHeader: {
+    marginBottom: 12,
+  },
+  sectionTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  sectionIconWrap: {
+    alignItems: "center",
+    backgroundColor: COLORS.actionSoft,
+    borderRadius: 10,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  infoRow: {
+    gap: 4,
+    paddingVertical: 10,
+  },
+  infoLabel: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  infoValue: {
     color: COLORS.text,
     fontSize: 15,
+    lineHeight: 22,
+  },
+  divider: {
+    backgroundColor: COLORS.border,
+    height: 1,
+  },
+  description: {
+    color: COLORS.text,
+    fontSize: 15,
+    lineHeight: 24,
+  },
+
+  field: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    color: COLORS.text,
+    fontSize: 13,
     fontWeight: "700",
   },
   input: {
-    backgroundColor: COLORS.background + "50", // Màu nền nhẹ hơn cho input
+    backgroundColor: COLORS.surfaceMuted,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: RADII.md,
     borderWidth: 1,
     color: COLORS.text,
     fontSize: 15,
-    minHeight: 56,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: 46,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   textArea: {
-    minHeight: 140,
+    minHeight: 112,
   },
-  buttonGroup: {
-    marginTop: 28,
-    gap: 12,
-  },
-  resetButton: {
+  actionRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: COLORS.danger + "10", // Màu đỏ rất nhạt
-    borderWidth: 1,
-    borderColor: COLORS.danger + "20",
-    gap: 8,
-  },
-  resetButtonText: {
-    color: COLORS.danger,
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  centerBox: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     gap: 12,
   },
-  mutedText: {
+  cancelButton: {
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: RADII.lg,
+    borderWidth: 1,
+    height: 50,
+    justifyContent: "center",
+    width: 96,
+  },
+  cancelButtonText: {
     color: COLORS.muted,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  saveButtonWrap: {
+    flex: 1,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

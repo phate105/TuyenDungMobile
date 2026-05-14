@@ -43,14 +43,14 @@ const badgeStyles = {
   },
 };
 
-export default function StatusBadge({ status, label }) {
+export default function StatusBadge({ status, label, style }) {
   const colors = badgeStyles[status] || {
     backgroundColor: COLORS.surfaceMuted,
     color: COLORS.muted,
   };
 
   return (
-    <Text style={[styles.badge, { backgroundColor: colors.backgroundColor, color: colors.color }]}>
+    <Text style={[styles.badge, { backgroundColor: colors.backgroundColor, color: colors.color }, style]}>
       {label || getStatusLabel(status)}
     </Text>
   );

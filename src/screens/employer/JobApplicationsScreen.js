@@ -1,142 +1,160 @@
-import { useCallback, useState, useMemo } from "react";
-import { Alert, Pressable, StyleSheet, Text, View, ActivityIndicator, FlatList } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import Screen from "../../components/Screen";
 import StatusBadge from "../../components/StatusBadge";
+import { APPLICATION_STATUS } from "../../constants/appConstants";
 import { COLORS, RADII } from "../../constants/theme";
 import { employerService } from "../../services/employerService";
 
 const PAGE_SIZE = 10;
 
-const applicationStatusLabels = {
-  submitted: "Đã nộp",
-  under_review: "Xem xét",
-  suitable: "Phù hợp",
-  rejected: "Bị từ chối",
-};
+const filters = [
+  { label: "Tất cả", value: "all" },
+  { label: "Đã nộp", value: APPLICATION_STATUS.SUBMITTED },
+  { label: "Đã xem", value: APPLICATION_STATUS.UNDER_REVIEW },
+  { label: "Phù hợp", value: APPLICATION_STATUS.SUITABLE },
+  { label: "Từ chối", value: APPLICATION_STATUS.REJECTED },
+];
 
 export default function JobApplicationsScreen({ user }) {
   const navigation = useNavigation();
   const route = useRoute();
   const { jobId, jobTitle } = route.params;
-  const [applications, setApplications] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(1);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      async function loadApplications() {
+
+      async function loadData() {
         try {
           setLoading(true);
-          const rows = await employerService.getApplicationsByJob(user.id, jobId);
-          if (active) setApplications(rows);
-        } catch (err) {
-          Alert.alert("Lỗi", err.message);
+          const rows = await employerService.getApplicationsByJob(user.id, jobId, { status: "all", limit: 1000, offset: 0 });
+          if (active) {
+            setItems(rows);
+          }
+        } catch (error) {
+          Alert.alert("Lỗi", error.message || "Không thể tải danh sách ứng tuyển.");
         } finally {
-          if (active) setLoading(false);
+          if (active) {
+            setLoading(false);
+          }
         }
       }
-      loadApplications();
-      return () => { active = false; };
+
+      loadData();
+      return () => {
+        active = false;
+      };
     }, [jobId, user.id])
   );
 
-  const filteredApplications = useMemo(() => {
-      if (activeFilter === "all") return applications;
-      return applications.filter((app) => app.status === activeFilter);
-    }, [applications, activeFilter]);
-  
-    const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE));
-    const paginatedData = useMemo(() => {
-      const start = (page - 1) * PAGE_SIZE;
-      return filteredApplications.slice(start, start + PAGE_SIZE);
-    }, [filteredApplications, page]);
-  
-    const handleChangeFilter = (val) => {
-      setActiveFilter(val);
-      setPage(1);
-    };  
+  const filteredItems = useMemo(() => {
+    if (activeFilter === "all") {
+      return items;
+    }
+    return items.filter((item) => item.status === activeFilter);
+  }, [items, activeFilter]);
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.jobTitle} numberOfLines={1}>{jobTitle}</Text>
-      <View style={styles.subtitleRow}>
-        <Ionicons name="people-outline" size={16} color={COLORS.muted} />
-        <Text style={styles.subtitle}>
-          {applications.length} ứng viên đã ứng tuyển
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredItems.slice(start, start + PAGE_SIZE);
+  }, [filteredItems, page]);
+
+  function handleChangeFilter(value) {
+    setActiveFilter(value);
+    setPage(1);
+  }
+
+  function renderHeader() {
+    return (
+      <View style={styles.header}>
+        <Text style={styles.jobTitle} numberOfLines={2}>
+          {jobTitle}
         </Text>
-      </View>
-    </View>
-  );
+        <Text style={styles.subtitle}>{filteredItems.length} ứng viên đã ứng tuyển</Text>
 
-  const renderApplication = ({ item }) => (
-    <Pressable
-      onPress={() => navigation.navigate("ApplicantCV", { applicationId: item.id })}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-    >
-      <View style={styles.cardTop}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {item.candidate_name?.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.infoMain}>
-          <Text style={styles.candidateName}>{item.candidate_name}</Text>
-          <StatusBadge 
-            status={item.status} 
-            label={applicationStatusLabels[item.status]} 
-          />
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.contactInfo}>
-        <View style={styles.contactItem}>
-          <Ionicons name="mail-outline" size={14} color={COLORS.muted} />
-          <Text style={styles.contactText} numberOfLines={1}>{item.candidate_email}</Text>
-        </View>
-        <View style={styles.contactItem}>
-          <Ionicons name="call-outline" size={14} color={COLORS.muted} />
-          <Text style={styles.contactText}>{item.candidate_phone}</Text>
+        <View style={styles.filterRow}>
+          {filters.map((item) => {
+            const active = item.value === activeFilter;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => handleChangeFilter(item.value)}
+                style={({ pressed }) => [
+                  styles.filterButton,
+                  active && styles.filterButtonActive,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
-    </Pressable>
-  );
+    );
+  }
+
+  function renderItem({ item }) {
+    return (
+      <Pressable
+        onPress={() => navigation.navigate("ApplicantCV", { applicationId: item.id })}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      >
+        <View style={styles.rowTop}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{item.candidate_name?.charAt(0)?.toUpperCase() || "A"}</Text>
+          </View>
+          <View style={styles.info}>
+            <Text style={styles.candidateName}>{item.candidate_name || "Ứng viên"}</Text>
+            <StatusBadge status={item.status} />
+          </View>
+          <Ionicons color={COLORS.border} name="chevron-forward" size={18} />
+        </View>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.jobText} numberOfLines={1}>
+          Ứng tuyển: <Text style={styles.jobTextStrong}>{item.job_title || "Chưa có tiêu đề"}</Text>
+        </Text>
+        <Text style={styles.metaText}>Ngày nộp: {item.created_at}</Text>
+      </Pressable>
+    );
+  }
 
   return (
     <Screen>
       {loading ? (
-        <View style={styles.centerBox}>
+        <View style={styles.loadingBox}>
           <ActivityIndicator color={COLORS.action} size="large" />
-          <Text style={styles.mutedText}>Đang tải danh sách...</Text>
         </View>
       ) : (
         <FlatList
-          data={applications}
+          data={paginatedItems}
           keyExtractor={(item) => String(item.id)}
-          renderItem={renderApplication}
+          renderItem={renderItem}
           ListHeaderComponent={renderHeader}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>Chưa có ứng viên nào ứng tuyển</Text>
-          }
           ListFooterComponent={
-            filteredApplications.length > 0 && (
+            filteredItems.length > 0 ? (
               <PaginationControls
                 page={page}
                 totalPages={totalPages}
-                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-                onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+                onPrevious={() => setPage((current) => Math.max(1, current - 1))}
               />
-            )
+            ) : null
           }
+          ListEmptyComponent={<Text style={styles.emptyText}>Chưa có ứng viên nào ứng tuyển.</Text>}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </Screen>
@@ -145,92 +163,102 @@ export default function JobApplicationsScreen({ user }) {
 
 function PaginationControls({ page, totalPages, onNext, onPrevious }) {
   return (
-      <View style={styles.pagination}>
-        <Pressable 
-          disabled={page === 1} 
-          onPress={onPrevious} 
-          style={[styles.pageButton, page === 1 && styles.disabled]}
-        >
-          <Ionicons name="chevron-back" size={20} color={page === 1 ? COLORS.muted : COLORS.text} />
-        </Pressable>
-        
-        <View style={styles.pageInfo}>
-          <Text style={styles.pageNumberText}>Trang {page}</Text>
-          <Text style={styles.pageTotalText}>trên {totalPages}</Text>
-        </View>
-  
-        <Pressable 
-          disabled={page === totalPages} 
-          onPress={onNext} 
-          style={[styles.pageButton, page === totalPages && styles.disabled]}
-        >
-          <Ionicons name="chevron-forward" size={20} color={page === totalPages ? COLORS.muted : COLORS.text} />
-        </Pressable>
+    <View style={styles.pagination}>
+      <Pressable disabled={page === 1} onPress={onPrevious} style={[styles.pageButton, page === 1 && styles.disabled]}>
+        <Ionicons color={page === 1 ? COLORS.muted : COLORS.text} name="chevron-back" size={20} />
+      </Pressable>
+      <View style={styles.pageInfo}>
+        <Text style={styles.pageNumberText}>Trang {page}</Text>
+        <Text style={styles.pageTotalText}>trên {totalPages}</Text>
       </View>
+      <Pressable
+        disabled={page === totalPages}
+        onPress={onNext}
+        style={[styles.pageButton, page === totalPages && styles.disabled]}
+      >
+        <Ionicons color={page === totalPages ? COLORS.muted : COLORS.text} name="chevron-forward" size={20} />
+      </Pressable>
+    </View>
   );
 }
-  
+
 const styles = StyleSheet.create({
   listContent: {
-    paddingBottom: 30,
+    paddingBottom: 32,
   },
   header: {
     paddingHorizontal: 16,
-    marginBottom: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   jobTitle: {
     color: COLORS.text,
     fontSize: 22,
     fontWeight: "800",
   },
-  subtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
   subtitle: {
     color: COLORS.muted,
     fontSize: 15,
-    fontWeight: "500",
+    marginTop: 6,
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14,
+  },
+  filterButton: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  filterButtonActive: {
+    borderColor: COLORS.action,
+    backgroundColor: COLORS.action + "14",
+  },
+  filterText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  filterTextActive: {
+    color: COLORS.action,
   },
   card: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
     borderRadius: RADII.lg,
     borderWidth: 1,
-    padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    padding: 16,
   },
   cardPressed: {
-    transform: [{ scale: 0.98 }],
     backgroundColor: COLORS.surfaceMuted,
+    transform: [{ scale: 0.98 }],
   },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  rowTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
   },
   avatar: {
-    width: 48,
-    height: 48,
+    alignItems: "center",
+    backgroundColor: COLORS.action + "12",
     borderRadius: 24,
-    backgroundColor: COLORS.action + "15",
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
   },
   avatarText: {
     color: COLORS.action,
     fontSize: 18,
     fontWeight: "800",
   },
-  infoMain: {
+  info: {
     flex: 1,
     gap: 4,
   },
@@ -240,73 +268,70 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   divider: {
-    height: 1,
     backgroundColor: COLORS.border,
+    height: 1,
     marginVertical: 12,
     opacity: 0.5,
   },
-  contactInfo: {
-    flexDirection: 'column',
-    gap: 10,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  contactText: {
+  jobText: {
     color: COLORS.muted,
-    fontSize: 13,
+    fontSize: 14,
   },
-  centerBox: {
+  jobTextStrong: {
+    color: COLORS.text,
+    fontWeight: "700",
+  },
+  metaText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  loadingBox: {
+    alignItems: "center",
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 80,
-    opacity: 0.4,
+    justifyContent: "center",
   },
   emptyText: {
     color: COLORS.muted,
-    fontSize: 15,
+    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingTop: 24,
     textAlign: "center",
-    marginTop: 80,
   },
   pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 25,
-    paddingVertical: 20,
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 24,
+    justifyContent: "center",
+    paddingVertical: 18,
   },
   pageButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    alignItems: "center",
     backgroundColor: COLORS.surface,
-    borderWidth: 1,
     borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   pageInfo: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   pageNumberText: {
+    color: COLORS.text,
     fontSize: 15,
     fontWeight: "800",
-    color: COLORS.text,
   },
   pageTotalText: {
-    fontSize: 11,
     color: COLORS.muted,
-    textTransform: 'uppercase',
+    fontSize: 11,
+    textTransform: "uppercase",
   },
   disabled: {
-    opacity: 0.3,
+    opacity: 0.35,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

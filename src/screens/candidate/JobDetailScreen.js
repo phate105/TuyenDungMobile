@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,17 +12,17 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 
 import EmptyState from "../../components/EmptyState";
 import PrimaryButton from "../../components/PrimaryButton";
 import { getCompanyLogoSource } from "../../constants/companyLogos";
 import { LABELS, getWorkTypeLabel } from "../../constants/labels";
-import { COLORS, RADII, SHADOWS } from "../../constants/theme";
+import { COLORS, RADII } from "../../constants/theme";
 import { applicationService } from "../../services/applicationService";
 import { jobService } from "../../services/jobService";
 
 const HEADER_ROW_HEIGHT = 52;
+const BULLET_CHAR = "\u2022";
 
 export default function JobDetailScreen({ route, navigation, user }) {
   const { jobId } = route.params;
@@ -33,6 +34,7 @@ export default function JobDetailScreen({ route, navigation, user }) {
   const [saving, setSaving] = useState(false);
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState("");
+
   const logoSource = getCompanyLogoSource(job?.logo_path);
 
   useFocusEffect(
@@ -44,7 +46,7 @@ export default function JobDetailScreen({ route, navigation, user }) {
           setLoading(true);
           setError("");
 
-          const [result, savedResult, appliedResult] = await Promise.all([
+          const [jobResult, savedResult, appliedResult] = await Promise.all([
             jobService.getJobById(jobId),
             user?.id ? jobService.isJobSaved(user.id, jobId) : Promise.resolve(false),
             user?.id ? applicationService.hasApplied(user.id, jobId) : Promise.resolve(false),
@@ -54,17 +56,17 @@ export default function JobDetailScreen({ route, navigation, user }) {
             return;
           }
 
-          if (!result) {
+          if (!jobResult) {
             setError("Không tìm thấy việc hoặc việc chưa được duyệt.");
             return;
           }
 
-          setJob(result);
+          setJob(jobResult);
           setSaved(savedResult);
           setApplied(appliedResult);
-        } catch (err) {
+        } catch (loadError) {
           if (mounted) {
-            setError(err.message);
+            setError(loadError.message);
           }
         } finally {
           if (mounted) {
@@ -122,14 +124,14 @@ export default function JobDetailScreen({ route, navigation, user }) {
         await jobService.saveJob(user.id, jobId);
         setSaved(true);
       }
-    } catch (err) {
-      Alert.alert("Thông báo", err.message || "Không thể cập nhật việc đã lưu.");
+    } catch (toggleError) {
+      Alert.alert("Thông báo", toggleError.message || "Không thể cập nhật việc đã lưu.");
     } finally {
       setSaving(false);
     }
   }
 
-  function renderContent() {
+  function renderJobContent() {
     if (loading) {
       return (
         <View style={styles.centerBox}>
@@ -142,14 +144,12 @@ export default function JobDetailScreen({ route, navigation, user }) {
     if (error) {
       return (
         <View style={styles.centerBox}>
-          <EmptyState
-            icon="alert-circle-outline"
-            title="Không tải được công việc"
-            message={error}
-          />
+          <EmptyState icon="alert-circle-outline" message={error} title="Không tải được công việc" />
         </View>
       );
     }
+
+    const detailSections = buildJobDetailSections(job);
 
     return (
       <Animated.ScrollView
@@ -158,10 +158,9 @@ export default function JobDetailScreen({ route, navigation, user }) {
           { paddingBottom: 110 + Math.max(insets.bottom, 10) },
         ]}
         keyboardShouldPersistTaps="handled"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
@@ -178,6 +177,7 @@ export default function JobDetailScreen({ route, navigation, user }) {
 
           <View style={styles.summaryContent}>
             <Text style={styles.heroTitle}>{job.title}</Text>
+
             <TouchableOpacity activeOpacity={0.75} onPress={handleOpenCompany} style={styles.companyLink}>
               <Text numberOfLines={1} style={styles.heroCompany}>
                 {job.company_name}
@@ -213,10 +213,15 @@ export default function JobDetailScreen({ route, navigation, user }) {
 
         <View style={styles.contentSection}>
           <View style={styles.contentInner}>
-            <SectionBlock title="Mô tả công việc" content={job.description} />
-            <View style={styles.sectionSpacing} />
-            <SectionBlock title="Yêu cầu ứng viên" content={job.requirements} />
+            {detailSections.map((section, index) => (
+              <View key={`${section.title}-${index}`}>
+                <SectionBlock lines={section.lines} title={section.title} />
+                {index < detailSections.length - 1 ? <View style={styles.sectionSpacing} /> : null}
+              </View>
+            ))}
+
             <View style={styles.divider} />
+
             <TouchableOpacity activeOpacity={0.85} onPress={handleOpenCompany}>
               <View style={styles.companySectionHeader}>
                 <Text style={styles.sectionTitle}>Giới thiệu công ty</Text>
@@ -225,9 +230,9 @@ export default function JobDetailScreen({ route, navigation, user }) {
                   <Ionicons color={COLORS.action} name="chevron-forward" size={15} />
                 </View>
               </View>
+
               <Text style={styles.sectionText}>
-                {[job.company_field, job.company_address].filter(Boolean).join("\n") ||
-                  LABELS.common.noUpdate}
+                {[job.company_field, job.company_address].filter(Boolean).join("\n") || LABELS.common.noUpdate}
               </Text>
             </TouchableOpacity>
           </View>
@@ -243,11 +248,7 @@ export default function JobDetailScreen({ route, navigation, user }) {
         <Animated.View style={[styles.headerDivider, { opacity: headerOpacity }]} />
 
         <View style={[styles.headerRow, { paddingTop: insets.top }]}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => navigation.goBack()}
-            style={styles.headerButton}
-          >
+          <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.headerButton}>
             <Ionicons color={COLORS.text} name="arrow-back" size={24} />
           </TouchableOpacity>
 
@@ -274,7 +275,7 @@ export default function JobDetailScreen({ route, navigation, user }) {
         </View>
       </View>
 
-      {renderContent()}
+      {renderJobContent()}
 
       {!loading && !error ? (
         <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
@@ -297,9 +298,9 @@ export default function JobDetailScreen({ route, navigation, user }) {
 
           <PrimaryButton
             disabled={applied}
+            onPress={handleApply}
             style={[styles.applyButton, applied && styles.applyButtonDisabled]}
             title={applied ? "Đã ứng tuyển" : LABELS.buttons.apply}
-            onPress={handleApply}
           />
         </View>
       ) : null}
@@ -319,68 +320,95 @@ function MetaItem({ icon, label, value, withRightBorder = false }) {
   );
 }
 
-function SectionBlock({ title, content }) {
-  const lines = formatDetailLines(content || LABELS.common.noUpdate, title);
-
+function SectionBlock({ title, lines }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.detailTextBlock}>
-        {lines.map((line, index) => {
-          if (line.type === "heading") {
-            return (
-              <Text key={`${line.text}-${index}`} style={styles.detailHeading}>
-                {line.text}
-              </Text>
-            );
-          }
-
-          if (line.type === "bullet") {
-            return (
-              <View key={`${line.text}-${index}`} style={styles.bulletRow}>
-                <Text style={styles.bulletDot}>•</Text>
-                <Text style={styles.bulletText}>{line.text}</Text>
-              </View>
-            );
-          }
-
-          return (
+        {lines.map((line, index) =>
+          line.type === "bullet" ? (
+            <View key={`${line.text}-${index}`} style={styles.bulletRow}>
+              <Text style={styles.bulletDot}>{BULLET_CHAR}</Text>
+              <Text style={styles.bulletText}>{line.text}</Text>
+            </View>
+          ) : (
             <Text key={`${line.text}-${index}`} style={styles.sectionText}>
               {line.text}
             </Text>
-          );
-        })}
+          )
+        )}
       </View>
     </View>
   );
 }
 
-function formatDetailLines(content, title) {
-  const skipHeading = title.toLowerCase();
+function buildJobDetailSections(job) {
+  return [
+    ...parseDetailSections(job?.description, "Mô tả công việc"),
+    ...parseDetailSections(job?.requirements, "Yêu cầu ứng viên"),
+  ];
+}
 
-  return String(content)
+function parseDetailSections(content, fallbackTitle) {
+  const rawLines = String(content || "")
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const normalizedLine = line.replace(/^[-•]\s*/, "").trim();
-      const lowerLine = normalizedLine.replace(/:$/, "").toLowerCase();
-
-      if (lowerLine === skipHeading) {
-        return null;
-      }
-
-      if (line.startsWith("-") || line.startsWith("•")) {
-        return { text: normalizedLine, type: "bullet" };
-      }
-
-      if (line.endsWith(":")) {
-        return { text: line.replace(/:$/, ""), type: "heading" };
-      }
-
-      return { text: line, type: "text" };
-    })
     .filter(Boolean);
+
+  if (!rawLines.length) {
+    return [
+      {
+        title: fallbackTitle,
+        lines: [{ text: LABELS.common.noUpdate, type: "text" }],
+      },
+    ];
+  }
+
+  const normalizedFallbackTitle = normalizeSectionTitle(fallbackTitle);
+  const sections = [];
+  let currentSection = { title: fallbackTitle, lines: [] };
+  sections.push(currentSection);
+
+  rawLines.forEach((line) => {
+    if (line.endsWith(":")) {
+      const heading = line.replace(/:$/, "").trim();
+
+      if (normalizeSectionTitle(heading) === normalizedFallbackTitle && currentSection.lines.length === 0) {
+        return;
+      }
+
+      currentSection = { title: heading, lines: [] };
+      sections.push(currentSection);
+      return;
+    }
+
+    if (/^[-\u2022]\s*/.test(line)) {
+      currentSection.lines.push({
+        text: line.replace(/^[-\u2022]\s*/, "").trim(),
+        type: "bullet",
+      });
+      return;
+    }
+
+    currentSection.lines.push({
+      text: line,
+      type: "text",
+    });
+  });
+
+  return sections
+    .filter((section) => section.lines.length > 0)
+    .map((section) => ({
+      ...section,
+      title: section.title || fallbackTitle,
+    }));
+}
+
+function normalizeSectionTitle(value) {
+  return String(value || "")
+    .trim()
+    .replace(/:$/, "")
+    .toLowerCase();
 }
 
 const styles = StyleSheet.create({
@@ -454,12 +482,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
-    borderWidth: 1,
     borderRadius: 18,
+    borderWidth: 1,
     height: 78,
     justifyContent: "center",
-    width: 78,
     overflow: "hidden",
+    width: 78,
   },
   logoBadgeText: {
     color: COLORS.surface,
@@ -576,13 +604,6 @@ const styles = StyleSheet.create({
   },
   detailTextBlock: {
     gap: 6,
-  },
-  detailHeading: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 22,
-    marginTop: 8,
   },
   bulletRow: {
     alignItems: "flex-start",

@@ -517,7 +517,7 @@ function dedupeLookupRows(rows) {
 
 function pickCanonicalValue(value, canonicalValues) {
   if (canonicalValues.includes(value)) {
-    return value;
+    return normalizeLookupText(value);
   }
 
   const valueKey = normalizeLookupKey(value);
@@ -533,7 +533,7 @@ function pickCanonicalValue(value, canonicalValues) {
     }
   }
 
-  return bestScore >= 0.48 ? bestMatch : value;
+  return bestScore >= 0.48 ? normalizeLookupText(bestMatch) : normalizeLookupText(value);
 }
 
 function similarityScore(left, right) {
