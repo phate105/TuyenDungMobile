@@ -189,12 +189,12 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
         disabled={!canGoPrevious}
         onPress={onPrevious}
         style={({ pressed }) => [
-          styles.pageTextButton,
-          !canGoPrevious && styles.pageTextButtonDisabled,
+          styles.pageButton,
+          !canGoPrevious && styles.pageButtonDisabled,
           pressed && canGoPrevious && styles.pressed,
         ]}
       >
-        <Text style={styles.pageActionText}>TRƯỚC</Text>
+        <Ionicons color={canGoPrevious ? COLORS.action : COLORS.muted} name="arrow-back" size={24} />
       </Pressable>
 
       <Text style={styles.pageNumber}>
@@ -205,12 +205,12 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
         disabled={!canGoNext}
         onPress={onNext}
         style={({ pressed }) => [
-          styles.pageTextButton,
-          !canGoNext && styles.pageTextButtonDisabled,
+          styles.pageButton,
+          !canGoNext && styles.pageButtonDisabled,
           pressed && canGoNext && styles.pressed,
         ]}
       >
-        <Text style={styles.pageActionText}>SAU</Text>
+        <Ionicons color={canGoNext ? COLORS.action : COLORS.muted} name="arrow-forward" size={24} />
       </Pressable>
     </View>
   );
@@ -308,24 +308,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingTop: 8,
   },
-  pageTextButton: {
+  pageButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 32,
     minWidth: 76,
-    paddingVertical: 6,
   },
-  pageTextButtonDisabled: {
+  pageButtonDisabled: {
     opacity: 0.35,
-  },
-  pageActionText: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 0.4,
   },
   pageNumber: {
     color: COLORS.text,
     fontSize: 13,
     fontWeight: "600",
-    minWidth: 40,
+    minWidth: 62,
     textAlign: "center",
   },
   fabButton: {

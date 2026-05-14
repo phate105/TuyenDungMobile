@@ -1,7 +1,7 @@
 import { APPLICATION_STATUS, JOB_STATUS, ROLES, USER_STATUS } from "../constants/appConstants";
 
 const DEMO_PASSWORD = "123456";
-const DEMO_SEED_VERSION = 3;
+const DEMO_SEED_VERSION = 5;
 
 const categories = [
   "Công nghệ thông tin",
@@ -863,6 +863,7 @@ async function seedSupplementalDemoData(db) {
   }
 
   const cv = await seedDemoCV(db, candidate);
+  await seedEmployerDemoWorkspace(db, candidate, cv.id);
   const selectedJobs = pickDemoApplicationJobs(approvedJobs, 16);
 
   await seedDemoSavedJobs(db, candidate.id, approvedJobs);
@@ -1078,6 +1079,265 @@ async function setSeedVersion(db, version) {
     `,
     ["demo_seed_version", String(version)]
   );
+}
+
+async function seedEmployerDemoWorkspace(db, candidate, cvId) {
+  const employer = await db.getFirstAsync("SELECT id FROM users WHERE email = ?", ["employer@vietjob.local"]);
+
+  if (!employer?.id) {
+    return;
+  }
+
+  const companyProfile = await upsertEmployerDemoCompanyProfile(db, employer.id);
+  const jobs = buildEmployerDemoJobs();
+
+  for (const job of jobs) {
+    await upsertSeedJob(db, employer.id, companyProfile.id, job);
+  }
+
+  const seededApprovedJobs = [];
+
+  for (const job of jobs) {
+    const existingJob = await findExistingSeedJob(db, employer.id, job);
+
+    if (existingJob?.id && job.status === JOB_STATUS.APPROVED) {
+      seededApprovedJobs.push({
+        id: existingJob.id,
+        title: job.title,
+        company_name: companyProfile.company_name,
+      });
+    }
+  }
+
+  await seedEmployerDemoApplications(db, candidate.id, cvId, seededApprovedJobs);
+}
+
+async function upsertEmployerDemoCompanyProfile(db, employerId) {
+  await db.runAsync(
+    `
+      INSERT INTO company_profiles
+        (
+          user_id,
+          company_name,
+          company_field,
+          company_address,
+          description,
+          logo_path,
+          website,
+          company_size,
+          contact_person,
+          updated_at
+        )
+      VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id) DO UPDATE SET
+        company_name = excluded.company_name,
+        company_field = excluded.company_field,
+        company_address = excluded.company_address,
+        description = excluded.description,
+        logo_path = excluded.logo_path,
+        website = excluded.website,
+        company_size = excluded.company_size,
+        contact_person = excluded.contact_person,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [
+      employerId,
+      "Công ty TNHH VietJob Demo",
+      "Công nghệ thông tin",
+      "Quận 3, TP. Hồ Chí Minh",
+      "Doanh nghiệp demo phục vụ đồ án tuyển dụng, chuyên đăng tin kỹ thuật, vận hành và sản phẩm để minh họa luồng nhà tuyển dụng trong ứng dụng.",
+      "",
+      "https://vietjob-demo.local",
+      "20 - 50 nhân sự",
+      "Phòng tuyển dụng VietJob Demo",
+    ]
+  );
+
+  return db.getFirstAsync("SELECT id, company_name FROM company_profiles WHERE user_id = ? LIMIT 1", [employerId]);
+}
+
+function buildEmployerDemoJobs() {
+  const titleConfigs = [
+    {
+      legacyTitle: "employer-demo-react-native",
+      title: "React Native Developer",
+      category: categories[0],
+      locationDetail: "Quận 3, TP. Hồ Chí Minh",
+      location: locations[28],
+      workType: "Hybrid",
+      level: "Junior",
+      group: "it",
+      status: JOB_STATUS.APPROVED,
+      createdAt: "2026-05-01 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-qa",
+      title: "QA Engineer",
+      category: categories[0],
+      locationDetail: "Quận 3, TP. Hồ Chí Minh",
+      location: locations[28],
+      workType: "Full-time",
+      level: "Middle",
+      group: "it",
+      status: JOB_STATUS.APPROVED,
+      createdAt: "2026-05-02 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-hr",
+      title: "Chuyên viên tuyển dụng IT",
+      category: categories[11],
+      locationDetail: "Quận 3, TP. Hồ Chí Minh",
+      location: locations[28],
+      workType: "Full-time",
+      level: "Junior",
+      group: "marketing",
+      status: JOB_STATUS.APPROVED,
+      createdAt: "2026-05-03 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-product",
+      title: "Product Executive",
+      category: categories[11],
+      locationDetail: "Quận 1, TP. Hồ Chí Minh",
+      location: locations[28],
+      workType: "Hybrid",
+      level: "Middle",
+      group: "operations",
+      status: JOB_STATUS.APPROVED,
+      createdAt: "2026-05-04 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-backend",
+      title: "Backend Developer",
+      category: categories[0],
+      locationDetail: "B\u00ecnh Th\u1ea1nh, TP. H\u1ed3 Ch\u00ed Minh",
+      location: locations[28],
+      workType: "Full-time",
+      level: "Middle",
+      group: "it",
+      status: JOB_STATUS.APPROVED,
+      createdAt: "2026-05-04 14:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-customer-success",
+      title: "Chuy\u00ean vi\u00ean Customer Success",
+      category: categories[11],
+      locationDetail: "Qu\u1eadn 3, TP. H\u1ed3 Ch\u00ed Minh",
+      location: locations[28],
+      workType: "Hybrid",
+      level: "Junior",
+      group: "operations",
+      status: JOB_STATUS.APPROVED,
+      createdAt: "2026-05-04 16:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-designer",
+      title: "UI/UX Designer",
+      category: categories[0],
+      locationDetail: "Cầu Giấy, Hà Nội",
+      location: locations[11],
+      workType: "Full-time",
+      level: "Junior",
+      group: "it",
+      status: JOB_STATUS.PENDING,
+      createdAt: "2026-05-05 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-support",
+      title: "Nhân viên hỗ trợ khách hàng",
+      category: categories[11],
+      locationDetail: "Thủ Đức, TP. Hồ Chí Minh",
+      location: locations[28],
+      workType: "Full-time",
+      level: "Fresher",
+      group: "operations",
+      status: JOB_STATUS.PENDING,
+      createdAt: "2026-05-06 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-devops",
+      title: "DevOps Engineer",
+      category: categories[0],
+      locationDetail: "Nam Từ Liêm, Hà Nội",
+      location: locations[11],
+      workType: "Remote",
+      level: "Senior",
+      group: "it",
+      status: JOB_STATUS.REJECTED,
+      rejectReason: "Tin cần bổ sung mô tả chi tiết phúc lợi và thời gian làm việc rõ ràng hơn.",
+      createdAt: "2026-05-07 09:00:00",
+    },
+    {
+      legacyTitle: "employer-demo-content",
+      title: "Chuy\u00ean vi\u00ean n\u1ed9i dung tuy\u1ec3n d\u1ee5ng",
+      category: categories[11],
+      locationDetail: "Qu\u1eadn 1, TP. H\u1ed3 Ch\u00ed Minh",
+      location: locations[28],
+      workType: "Full-time",
+      level: "Junior",
+      group: "marketing",
+      status: JOB_STATUS.REJECTED,
+      rejectReason:
+        "Tin c\u00f2n thi\u1ebfu y\u00eau c\u1ea7u \u1ee9ng vi\u00ean v\u00e0 quy\u1ec1n l\u1ee3i tr\u00ecnh b\u00e0y ch\u01b0a r\u00f5.",
+      createdAt: "2026-05-08 09:00:00",
+    },
+  ];
+
+  return titleConfigs.map((config) => ({
+    ...config,
+    salary: getSalary(config.level, config.group, config.workType, 1),
+    description: buildDescription(
+      {
+        name: "Công ty TNHH VietJob Demo",
+        field: "Công nghệ thông tin",
+      },
+      config.group,
+      config.title,
+      config.level,
+      config.locationDetail,
+      config.workType,
+      "30/07/2026"
+    ),
+    requirements: buildRequirements(config.group, config.level),
+  }));
+}
+
+async function seedEmployerDemoApplications(db, candidateId, cvId, jobs) {
+  const statuses = [
+    APPLICATION_STATUS.SUBMITTED,
+    APPLICATION_STATUS.UNDER_REVIEW,
+    APPLICATION_STATUS.SUITABLE,
+    APPLICATION_STATUS.REJECTED,
+  ];
+
+  for (let index = 0; index < jobs.length; index += 1) {
+    const job = jobs[index];
+    const status = statuses[index % statuses.length];
+
+    await db.runAsync(
+      `
+        INSERT INTO applications
+          (job_id, candidate_id, cv_id, cover_letter, status, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(job_id, candidate_id) DO UPDATE SET
+          cv_id = excluded.cv_id,
+          cover_letter = excluded.cover_letter,
+          status = excluded.status,
+          created_at = excluded.created_at,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        job.id,
+        candidateId,
+        cvId,
+        `Ứng tuyển demo cho vị trí ${job.title} tại ${job.company_name}. Đây là dữ liệu mẫu để kiểm thử luồng nhà tuyển dụng.`,
+        status,
+        `2026-05-${String(10 + index).padStart(2, "0")} 10:00:00`,
+      ]
+    );
+  }
 }
 
 async function upsertEmployer(db, company, index) {
