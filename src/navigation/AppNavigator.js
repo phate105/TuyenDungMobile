@@ -169,7 +169,14 @@ function AuthNavigator({ onAuthenticated }) {
       <Stack.Screen name="Login" options={{ headerShown: false }}>
         {(props) => <LoginScreen {...props} onAuthenticated={onAuthenticated} />}
       </Stack.Screen>
-      <Stack.Screen name="Register" options={{ ...lightStackScreenOptions, title: "Đăng ký" }}>
+      <Stack.Screen
+        name="Register"
+        options={{
+          ...lightStackScreenOptions,
+          headerStyle: { backgroundColor: COLORS.surfaceMuted },
+          title: "Đăng ký",
+        }}
+      >
         {(props) => <RegisterScreen {...props} onAuthenticated={onAuthenticated} />}
       </Stack.Screen>
     </Stack.Navigator>
@@ -201,6 +208,7 @@ function AdminTabs({ user, onLogout }) {
     <Tab.Navigator
       tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{
+        headerShown: false,
         headerStyle: { backgroundColor: COLORS.surface },
         headerShadowVisible: false,
         headerTintColor: COLORS.text,
@@ -231,6 +239,7 @@ function EmployerTabs({ user, onLogout }) {
     <Tab.Navigator
       tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{
+        headerShown: false,
         headerStyle: { backgroundColor: COLORS.surface },
         headerShadowVisible: false,
         headerTintColor: COLORS.text,
@@ -325,13 +334,13 @@ function EmployerNavigator({ user, onLogout }) {
       >
         {(props) => <EmployerJobFormScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen name="EmployerJobDetail" options={{ title: "Chi tiết tin" }}>
+      <Stack.Screen name="EmployerJobDetail" options={{ headerShown: false }}>
         {(props) => <EmployerJobDetailScreen {...props} user={user} />}
       </Stack.Screen>
       <Stack.Screen name="JobApplications" options={{ title: "Danh sách ứng tuyển" }}>
         {(props) => <JobApplicationsScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen name="ApplicantCV" options={{ title: "Hồ sơ ứng viên" }}>
+      <Stack.Screen name="ApplicantCV" options={{ headerShown: false }}>
         {(props) => <ApplicantCVScreen {...props} user={user} />}
       </Stack.Screen>
     </Stack.Navigator>
@@ -344,13 +353,13 @@ function AdminNavigator({ user, onLogout }) {
       <Stack.Screen name="AdminTabs" options={{ headerShown: false }}>
         {(props) => <AdminTabs {...props} user={user} onLogout={onLogout} />}
       </Stack.Screen>
-      <Stack.Screen name="AdminApplicationDetail" options={{ title: "Đơn ứng tuyển" }}>
+      <Stack.Screen name="AdminApplicationDetail" options={{ headerShown: false }}>
         {(props) => <ApplicationsDetailScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen name="AdminJobDetail" options={{ title: "Chi tiết tin tuyển dụng" }}>
+      <Stack.Screen name="AdminJobDetail" options={{ headerShown: false }}>
         {(props) => <AdminJobDetailScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen name="UserDetail" options={{ title: "Chi tiết tài khoản" }}>
+      <Stack.Screen name="UserDetail" options={{ headerShown: false }}>
         {(props) => <UserDetailScreen {...props} user={user} />}
       </Stack.Screen>
     </Stack.Navigator>

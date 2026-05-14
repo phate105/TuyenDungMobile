@@ -83,6 +83,7 @@ export async function createSchema(db) {
       company_field TEXT NOT NULL,
       company_address TEXT NOT NULL,
       description TEXT,
+      avatar_uri TEXT,
       logo_path TEXT,
       website TEXT,
       company_size TEXT,
@@ -121,6 +122,12 @@ export async function createSchema(db) {
       FOREIGN KEY (company_id) REFERENCES company_profiles(id) ON DELETE CASCADE,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
       FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS applications (
@@ -163,6 +170,7 @@ export async function createSchema(db) {
   await addColumnIfMissing(db, "candidate_profiles", "birth_date", "TEXT");
   await addColumnIfMissing(db, "candidate_profiles", "bio", "TEXT");
   await addColumnIfMissing(db, "company_profiles", "logo_path", "TEXT");
+  await addColumnIfMissing(db, "company_profiles", "avatar_uri", "TEXT");
   await addColumnIfMissing(db, "company_profiles", "website", "TEXT");
   await addColumnIfMissing(db, "company_profiles", "company_size", "TEXT");
   await addColumnIfMissing(db, "company_profiles", "contact_person", "TEXT");

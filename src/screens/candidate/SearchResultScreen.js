@@ -179,7 +179,7 @@ export default function SearchResultScreen({ navigation, route, user }) {
   }
 
   return (
-    <Screen contentStyle={styles.screenContent} style={styles.screen}>
+    <Screen edges={["top", "left", "right"]} contentStyle={styles.screenContent} style={styles.screen}>
       <View style={styles.topPanel}>
         <View style={styles.searchHeader}>
           <TouchableOpacity activeOpacity={0.75} onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -498,10 +498,9 @@ const styles = StyleSheet.create({
   },
   topPanel: {
     backgroundColor: COLORS.background,
-    borderBottomColor: COLORS.border,
-    borderBottomWidth: 1,
     paddingHorizontal: 18,
-    paddingTop: 16,
+    paddingTop: 22,
+    paddingBottom: 8,
   },
   searchHeader: {
     alignItems: "center",

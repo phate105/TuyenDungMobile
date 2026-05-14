@@ -10,6 +10,7 @@ export default function PrimaryButton({
   variant = "primary",
   disabled = false,
   style,
+  textStyle,
 }) {
   const isSecondary = variant === "secondary";
   const isDanger = variant === "danger";
@@ -31,7 +32,7 @@ export default function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={isSecondary ? COLORS.brand : COLORS.surface} />
       ) : (
-        <Text style={[styles.text, isSecondary && styles.secondaryText]}>{title}</Text>
+        <Text style={[styles.text, isSecondary && styles.secondaryText, textStyle]}>{title}</Text>
       )}
     </Pressable>
   );

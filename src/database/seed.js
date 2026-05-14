@@ -1,6 +1,7 @@
-import { JOB_STATUS, ROLES, USER_STATUS } from "../constants/appConstants";
+import { APPLICATION_STATUS, JOB_STATUS, ROLES, USER_STATUS } from "../constants/appConstants";
 
 const DEMO_PASSWORD = "123456";
+const DEMO_SEED_VERSION = 3;
 
 const categories = [
   "Công nghệ thông tin",
@@ -707,28 +708,36 @@ const locationDetails = [
 
 export async function seedDatabase(db) {
   const userCount = await db.getFirstAsync("SELECT COUNT(*) as count FROM users");
+  const seedVersion = await getSeedVersion(db);
 
-  if (userCount.count > 0) {
-    console.log("Database đã có dữ liệu, bỏ qua bước seed.");
+  if (userCount.count === 0) {
+    await seedLookup(db, "categories", categories);
+    await seedLookup(db, "locations", locations);
+    await repairDisplayText(db);
+    await cleanupLegacyDemoData(db);
+    await seedCoreAccounts(db);
+
+    for (const [companyIndex, company] of companies.entries()) {
+      const employer = await upsertEmployer(db, company, companyIndex);
+      const companyProfile = await upsertCompanyProfile(db, employer.id, company);
+      const jobs = buildJobsForCompany(company, companyIndex);
+
+      await cleanupCompanySeedJobs(db, employer.id, jobs);
+
+      for (const job of jobs) {
+        await upsertSeedJob(db, employer.id, companyProfile.id, job);
+      }
+    }
+
+    await seedSupplementalDemoData(db);
+    await setSeedVersion(db, DEMO_SEED_VERSION);
     return;
   }
-  
-  await seedLookup(db, "categories", categories);
-  await seedLookup(db, "locations", locations);
-  await repairDisplayText(db);
-  await cleanupLegacyDemoData(db);
-  await seedCoreAccounts(db);
 
-  for (const [companyIndex, company] of companies.entries()) {
-    const employer = await upsertEmployer(db, company, companyIndex);
-    const companyProfile = await upsertCompanyProfile(db, employer.id, company);
-    const jobs = buildJobsForCompany(company, companyIndex);
-
-    await cleanupCompanySeedJobs(db, employer.id, jobs);
-
-    for (const job of jobs) {
-      await upsertSeedJob(db, employer.id, companyProfile.id, job);
-    }
+  if ((Number(seedVersion?.value) || 0) < DEMO_SEED_VERSION) {
+    await repairDisplayText(db);
+    await seedSupplementalDemoData(db);
+    await setSeedVersion(db, DEMO_SEED_VERSION);
   }
 }
 
@@ -820,6 +829,255 @@ async function seedCoreAccounts(db) {
     phone: "0911111111",
     role: ROLES.EMPLOYER,
   });
+}
+
+async function seedSupplementalDemoData(db) {
+  const candidate = await db.getFirstAsync("SELECT id, full_name, email, phone FROM users WHERE email = ?", [
+    "candidate@vietjob.local",
+  ]);
+
+  if (!candidate?.id) {
+    return;
+  }
+
+  const approvedJobs = await db.getAllAsync(
+    `
+      SELECT
+        jobs.id,
+        jobs.title,
+        jobs.salary,
+        jobs.work_type,
+        jobs.created_at,
+        jobs.company_id,
+        company_profiles.company_name
+      FROM jobs
+      INNER JOIN company_profiles ON company_profiles.id = jobs.company_id
+      WHERE jobs.status = ?
+      ORDER BY jobs.created_at ASC, jobs.id ASC
+    `,
+    [JOB_STATUS.APPROVED]
+  );
+
+  if (!approvedJobs.length) {
+    return;
+  }
+
+  const cv = await seedDemoCV(db, candidate);
+  const selectedJobs = pickDemoApplicationJobs(approvedJobs, 16);
+
+  await seedDemoSavedJobs(db, candidate.id, approvedJobs);
+  await seedDemoApplications(db, candidate.id, cv.id, selectedJobs);
+}
+
+async function seedDemoCV(db, candidate) {
+  const personalInfo = {
+    fullName: candidate.full_name || "Nguyễn Văn Ứng Viên",
+    email: candidate.email,
+    phone: candidate.phone || "0922222222",
+    desiredTitle: "React Native Developer",
+    address: "TP. Hồ Chí Minh",
+    birthDate: "12/08/1998",
+    careerObjective:
+      "Mong muốn ứng tuyển vị trí Mobile/React Native để phát triển sản phẩm thực tế, tối ưu trải nghiệm người dùng và phối hợp tốt với đội sản xuất.",
+  };
+
+  await db.runAsync(
+    `
+      INSERT INTO cvs
+        (candidate_id, personal_info, summary, updated_at)
+      VALUES
+        (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(candidate_id) DO UPDATE SET
+        personal_info = excluded.personal_info,
+        summary = excluded.summary,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [candidate.id, JSON.stringify(personalInfo), personalInfo.careerObjective]
+  );
+
+  const cv = await db.getFirstAsync("SELECT id FROM cvs WHERE candidate_id = ?", [candidate.id]);
+
+  if (!cv?.id) {
+    throw new Error("Không tạo được CV mẫu cho tài khoản demo.");
+  }
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync("DELETE FROM experiences WHERE cv_id = ?", [cv.id]);
+    await db.runAsync("DELETE FROM educations WHERE cv_id = ?", [cv.id]);
+    await db.runAsync("DELETE FROM skills WHERE cv_id = ?", [cv.id]);
+
+    const experiences = [
+      {
+        title: "Mobile Developer",
+        organization: "VietJob Demo Studio",
+        description: "Phát triển và bảo trì ứng dụng mobile nội bộ, tối ưu giao diện và xử lý dữ liệu SQLite.",
+        startDate: "01/03/2023",
+        endDate: "30/06/2024",
+        isCurrent: 0,
+      },
+      {
+        title: "React Native Developer",
+        organization: "Freelance / Personal Project",
+        description: "Xây dựng các tính năng đăng nhập, tạo CV, ứng tuyển và danh sách việc làm cho app demo.",
+        startDate: "01/07/2024",
+        endDate: null,
+        isCurrent: 1,
+      },
+    ];
+
+    for (const experience of experiences) {
+      await db.runAsync(
+        `
+          INSERT INTO experiences
+            (cv_id, title, organization, description, start_date, end_date, is_current)
+          VALUES
+            (?, ?, ?, ?, ?, ?, ?)
+        `,
+        [cv.id, experience.title, experience.organization, experience.description, experience.startDate, experience.endDate, experience.isCurrent]
+      );
+    }
+
+    await db.runAsync(
+      `
+        INSERT INTO educations
+          (cv_id, school, major, degree, start_year, end_year, description)
+        VALUES
+          (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        cv.id,
+        "Đại học Công nghệ TP. Hồ Chí Minh",
+        "Công nghệ thông tin",
+        "Cử nhân",
+        "2017",
+        "2021",
+        "Học các môn nền tảng về lập trình di động, cơ sở dữ liệu và xây dựng sản phẩm số.",
+      ]
+    );
+
+    const skills = ["React Native", "TypeScript", "SQLite", "JavaScript", "Git", "REST API"];
+    for (const skill of skills) {
+      await db.runAsync("INSERT INTO skills (cv_id, name) VALUES (?, ?)", [cv.id, skill]);
+    }
+  });
+
+  return cv;
+}
+
+function pickDemoApplicationJobs(jobs, limit) {
+  const selected = [];
+  const usedCompanyIds = new Set();
+
+  for (const job of jobs) {
+    if (!usedCompanyIds.has(job.company_id)) {
+      selected.push(job);
+      usedCompanyIds.add(job.company_id);
+
+      if (selected.length >= limit) {
+        return selected;
+      }
+    }
+  }
+
+  for (const job of jobs) {
+    if (selected.some((selectedJob) => selectedJob.id === job.id)) {
+      continue;
+    }
+
+    selected.push(job);
+
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected.slice(0, limit);
+}
+
+async function seedDemoSavedJobs(db, candidateId, jobs) {
+  const selectedJobs = jobs.slice(0, 10);
+
+  await db.withTransactionAsync(async () => {
+    for (const job of selectedJobs) {
+      await db.runAsync(
+        `
+          INSERT OR IGNORE INTO saved_jobs
+            (candidate_id, job_id, created_at)
+          VALUES
+            (?, ?, ?)
+        `,
+        [candidateId, job.id, job.created_at || "2026-05-01 10:00:00"]
+      );
+    }
+  });
+}
+
+async function seedDemoApplications(db, candidateId, cvId, jobs) {
+  const statuses = [
+    APPLICATION_STATUS.SUBMITTED,
+    APPLICATION_STATUS.UNDER_REVIEW,
+    APPLICATION_STATUS.SUITABLE,
+    APPLICATION_STATUS.REJECTED,
+  ];
+
+  await db.withTransactionAsync(async () => {
+    for (let index = 0; index < jobs.length; index += 1) {
+      const job = jobs[index];
+      const status = statuses[index % statuses.length];
+      const createdAt = buildApplicationCreatedAt(index);
+      const coverLetter = buildDemoCoverLetter(job, index, status);
+
+      await db.runAsync(
+        `
+          INSERT INTO applications
+            (job_id, candidate_id, cv_id, cover_letter, status, created_at, updated_at)
+          VALUES
+            (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(job_id, candidate_id) DO UPDATE SET
+            cv_id = excluded.cv_id,
+            cover_letter = excluded.cover_letter,
+            status = excluded.status,
+            created_at = excluded.created_at,
+            updated_at = CURRENT_TIMESTAMP
+        `,
+        [job.id, candidateId, cvId, coverLetter, status, createdAt]
+      );
+    }
+  });
+}
+
+function buildDemoCoverLetter(job, index, status) {
+  return [
+    `Tôi quan tâm vị trí ${job.title} tại ${job.company_name}.`,
+    "Bộ hồ sơ mẫu này được tạo để minh họa các tình huống ứng tuyển khác nhau trong app demo.",
+    `Trạng thái hiện tại: ${status}.`,
+    "Tôi mong muốn được trao đổi thêm và gia nhập đội ngũ nếu phù hợp với yêu cầu của công ty.",
+  ].join(" ");
+}
+
+function buildApplicationCreatedAt(index) {
+  const day = 2 + index;
+  const hour = 8 + (index % 8);
+  const minute = String((index * 11) % 60).padStart(2, "0");
+
+  return `2026-05-${String(day).padStart(2, "0")} ${String(hour).padStart(2, "0")}:${minute}:00`;
+}
+
+async function getSeedVersion(db) {
+  return db.getFirstAsync("SELECT value FROM app_meta WHERE key = ?", ["demo_seed_version"]);
+}
+
+async function setSeedVersion(db, version) {
+  await db.runAsync(
+    `
+      INSERT INTO app_meta (key, value, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    ["demo_seed_version", String(version)]
+  );
 }
 
 async function upsertEmployer(db, company, index) {
@@ -917,7 +1175,7 @@ function buildJobsForCompany(company, companyIndex) {
     const [baseTitle, level, workType, category] = template;
     const locationDetail = pickLocation(company, group, companyIndex, index);
     const salary = getSalary(level, group, workType, index);
-    const status = index < 8 ? JOB_STATUS.APPROVED : index === 8 ? JOB_STATUS.PENDING : JOB_STATUS.REJECTED;
+    const status = index < 3 ? JOB_STATUS.APPROVED : index === 3 ? JOB_STATUS.PENDING : JOB_STATUS.REJECTED;
     const deadline = buildDeadline(companyIndex, index);
 
     jobs.push({

@@ -192,7 +192,7 @@ function ApplicationCard({ application, onPress }) {
       compact
       job={job}
       onPress={onPress}
-      rightAccessory={<StatusBadge status={application.status} />}
+      rightAccessory={<StatusBadge status={application.status} style={{ alignSelf: "flex-end" }} />}
     />
   );
 }

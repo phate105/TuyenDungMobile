@@ -5,7 +5,7 @@ import PrimaryButton from "../../components/PrimaryButton";
 import Screen from "../../components/Screen";
 import SelectField from "../../components/SelectField";
 import { ROLES } from "../../constants/appConstants";
-import { COLORS, SHADOWS } from "../../constants/theme";
+import { COLORS } from "../../constants/theme";
 import { authService } from "../../services/authService";
 import { jobService } from "../../services/jobService";
 
@@ -191,6 +191,7 @@ export default function RegisterScreen({ onAuthenticated }) {
         >
           <Text style={[styles.roleText, isCandidate && styles.roleTextActive]}>{COPY.candidate}</Text>
         </Pressable>
+
         <Pressable
           onPress={() => setRole(ROLES.EMPLOYER)}
           style={({ pressed }) => [
@@ -238,6 +239,7 @@ export default function RegisterScreen({ onAuthenticated }) {
               options={categoryIdOptions}
               placeholder={loadingOptions ? COPY.industryLoading : COPY.industryPlaceholder}
               selectedValue={candidateForm.categoryId}
+              variant="underline"
             />
             <SelectField
               label={COPY.location}
@@ -247,6 +249,7 @@ export default function RegisterScreen({ onAuthenticated }) {
               options={locationIdOptions}
               placeholder={loadingOptions ? COPY.locationLoading : COPY.locationPlaceholder}
               selectedValue={candidateForm.locationId}
+              variant="underline"
             />
           </>
         ) : (
@@ -290,6 +293,7 @@ export default function RegisterScreen({ onAuthenticated }) {
               options={categoryNameOptions}
               placeholder={loadingOptions ? COPY.industryLoading : COPY.industryPlaceholder}
               selectedValue={employerForm.companyField}
+              variant="underline"
             />
             <SelectField
               label={COPY.companyLocation}
@@ -297,65 +301,63 @@ export default function RegisterScreen({ onAuthenticated }) {
               options={locationNameOptions}
               placeholder={loadingOptions ? COPY.locationLoading : COPY.locationPlaceholder}
               selectedValue={employerForm.companyAddress}
+              variant="underline"
             />
           </>
         )}
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <PrimaryButton
-          disabled={loadingOptions}
-          loading={loading}
-          onPress={handleRegister}
-          style={styles.submitButton}
-          title={COPY.createAccount}
-        />
       </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <PrimaryButton
+        disabled={loadingOptions}
+        loading={loading}
+        onPress={handleRegister}
+        style={styles.submitButton}
+        title={COPY.createAccount}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingTop: 18,
+    backgroundColor: COLORS.surface,
+    paddingBottom: 28,
+    paddingTop: 8,
   },
   switchRow: {
-    backgroundColor: COLORS.brandSoft,
-    borderRadius: 14,
+    borderBottomColor: COLORS.border,
+    borderBottomWidth: 1,
     flexDirection: "row",
-    marginBottom: 18,
-    padding: 4,
+    marginBottom: 12,
   },
   roleButton: {
     alignItems: "center",
-    borderRadius: 10,
     flex: 1,
+    gap: 10,
     justifyContent: "center",
-    minHeight: 44,
+    paddingBottom: 12,
+    paddingTop: 8,
   },
   roleButtonActive: {
     backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderWidth: 1,
   },
   roleButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.74,
   },
   roleText: {
     color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "500",
   },
   roleTextActive: {
     color: COLORS.text,
+    fontWeight: "700",
   },
   formCard: {
-    ...SHADOWS.card,
     backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 18,
+    paddingTop: 4,
   },
   fieldGroup: {
     gap: 8,
@@ -367,18 +369,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   input: {
-    backgroundColor: COLORS.surfaceMuted,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: COLORS.surface,
+    borderBottomColor: COLORS.border,
+    borderBottomWidth: 1,
     color: COLORS.text,
     fontSize: 16,
     minHeight: 52,
-    paddingHorizontal: 14,
+    paddingHorizontal: 0,
   },
   inputFocused: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.action,
+    borderBottomColor: COLORS.action,
   },
   error: {
     color: COLORS.danger,

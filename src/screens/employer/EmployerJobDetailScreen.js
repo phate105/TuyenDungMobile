@@ -1,4 +1,5 @@
-import React, { useCallback, useRef, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,80 +9,82 @@ import {
   Text,
   TouchableOpacity,
   View,
-  StatusBar,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 
-// Giả định các hằng số và service của bạn
-import { COLORS, RADII } from "../../constants/theme";
-import { LABELS, getWorkTypeLabel } from "../../constants/labels";
-import { getCompanyLogoSource } from "../../constants/companyLogos";
-import { jobService } from "../../services/jobService";
-import PrimaryButton from "../../components/PrimaryButton";
 import EmptyState from "../../components/EmptyState";
+import PrimaryButton from "../../components/PrimaryButton";
+import { getCompanyLogoSource } from "../../constants/companyLogos";
+import { LABELS, getWorkTypeLabel } from "../../constants/labels";
+import { COLORS, RADII, SHADOWS } from "../../constants/theme";
+import { employerService } from "../../services/employerService";
 
-const HEADER_ROW_HEIGHT = 56;
+const HEADER_ROW_HEIGHT = 52;
 
-export default function EmployerJobDetailScreen({ route, navigation }) {
-  // 1. Kiểm tra an toàn jobId từ route
-  const { jobId } = route.params || {};
+export default function EmployerJobDetailScreen({ route, navigation, user }) {
+  const { jobId } = route.params;
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
-
   const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
-
-  // 2. Tự động ẩn Header mặc định của Navigation để tránh lỗi 2 tiêu đề như trong ảnh
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-  }, [navigation]);
+    const [loading, setLoading] = useState(true);
+      const [error, setError] = useState("");
+  const logoSource = getCompanyLogoSource(job?.logo_path);
 
   useFocusEffect(
     useCallback(() => {
-      let isMounted = true;
+      let mounted = true;
 
-      const loadJobDetails = async () => {
+      async function loadJob() {
         try {
-            setLoading(true);
-            // Thay đổi từ getJobById sang getJobByIdForEmployer
-            const response = await jobService.getJobByIdForEmployer(jobId); 
-            
-            const data = response?.data || response;
-            if (data) {
-              setJob(data);
-            } else {
-              setError("Không tìm thấy thông tin công việc.");
-            }
-          } catch (err) {
-            setError("Lỗi kết nối.");
-          } finally {
+          setLoading(true);
+          setError("");
+
+          const result = await employerService.getJobById(user.id, jobId);
+
+          if (!mounted) {
+            return;
+          }
+
+          if (!result) {
+            setError("Không tìm thấy việc hoặc việc chưa được duyệt.");
+            return;
+          }
+
+          setJob(result);
+          
+        } catch (err) {
+          if (mounted) {
+            setError(err.message);
+          }
+        } finally {
+          if (mounted) {
             setLoading(false);
           }
-      };
+        }
+      }
 
-      loadJobDetails();
-      return () => { isMounted = false; };
-    }, [jobId])
+      loadJob();
+
+      return () => {
+        mounted = false;
+      };
+    }, [jobId, user?.id])
   );
 
-  // 3. Hiệu ứng Header động khi cuộn
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 90],
+    inputRange: [0, 58, 59],
     outputRange: [0, 0, 1],
     extrapolate: "clamp",
   });
 
-  const handleEdit = () => {
-    navigation.navigate("EmployerJobForm", { jobId });
-  };
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, 58, 59],
+    outputRange: [6, 6, 0],
+    extrapolate: "clamp",
+  });
 
-  const handleDelete = () => {
+  async function handleDelete() {
     Alert.alert("Xác nhận", "Bạn có muốn xóa tin tuyển dụng này?", [
       { text: "Hủy", style: "cancel" },
       {
@@ -90,163 +93,526 @@ export default function EmployerJobDetailScreen({ route, navigation }) {
         onPress: async () => {
           try {
             setDeleting(true);
-            await jobService.deleteJob(jobId);
+            await employerService.deleteJob(user.id, jobId);
             navigation.goBack();
-          } catch (err) {
-            Alert.alert("Lỗi", "Không thể xóa tin lúc này.");
+          } catch (error) {
+            Alert.alert("Lỗi", error.message || "Không thể xóa tin tuyển dụng.");
           } finally {
             setDeleting(false);
           }
         },
       },
     ]);
-  };
-
-  // Render trạng thái Lỗi/Trống (Dựa trên ảnh image_ea62de.png)
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.action} />
-      </View>
-    );
   }
 
-  if (error || !job) {
+  const [deleting, setDeleting] = useState(false);
+
+  function renderContent() {
+    if (loading) {
+      return (
+        <View style={styles.centerBox}>
+          <ActivityIndicator color={COLORS.action} />
+          <Text style={styles.mutedText}>Đang tải thông tin công việc...</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.centerBox}>
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Không tải được công việc"
+            message={error}
+          />
+        </View>
+      );
+    }
+
     return (
-      <View style={styles.screen}>
-        <View style={[styles.headerRow, { marginTop: insets.top }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
+      <Animated.ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 110 + Math.max(insets.bottom, 10) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.heroSection, { paddingTop: insets.top + HEADER_ROW_HEIGHT - 35 }]}>
+          <View style={styles.logoShell}>
+            <View style={styles.logoBadge}>
+              {logoSource ? (
+                <Image resizeMode="contain" source={logoSource} style={styles.logoImage} />
+              ) : (
+                <Text style={styles.logoBadgeText}>{job.company_name?.charAt(0) || "V"}</Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.summaryContent}>
+            <Text style={styles.heroTitle}>{job.title}</Text>
+            <View style={styles.companyLink}>
+              <Text numberOfLines={1} style={styles.heroCompany}>
+                {job.company_name}
+              </Text>
+            </View>
+
+            <View style={styles.metaGrid}>
+              <MetaItem
+                icon="cash-outline"
+                label="Mức lương"
+                value={job.salary || LABELS.common.negotiableSalary}
+                withRightBorder
+              />
+              <MetaItem
+                icon="location-outline"
+                label="Địa điểm"
+                value={job.location_name || LABELS.common.noUpdate}
+              />
+              <MetaItem
+                icon="time-outline"
+                label="Hình thức"
+                value={getWorkTypeLabel(job.work_type)}
+                withRightBorder
+              />
+              <MetaItem
+                icon="briefcase-outline"
+                label="Ngành nghề"
+                value={job.category_name || LABELS.common.noUpdate}
+              />
+            </View>
+          </View>
         </View>
-        <View style={styles.centerContainer}>
-          <EmptyState 
-            icon="alert-circle-outline" 
-            title="Lỗi" 
-            message={error || "Dữ liệu trống"} 
-          />
-          <PrimaryButton 
-            title="Quay lại" 
-            onPress={() => navigation.goBack()} 
-            style={{ marginTop: 20, width: '60%' }} 
-          />
+
+        <View style={styles.contentSection}>
+          <View style={styles.contentInner}>
+            <SectionBlock title="Mô tả công việc" content={job.description} />
+            <View style={styles.sectionSpacing} />
+            <SectionBlock title="Yêu cầu ứng viên" content={job.requirements} />
+            <View style={styles.divider} />
+            <View>
+              <View style={styles.companySectionHeader}>
+                <Text style={styles.sectionTitle}>Giới thiệu công ty</Text>
+              </View>
+              <Text style={styles.sectionText}>
+                {[job.company_field, job.company_address].filter(Boolean).join("\n") ||
+                  LABELS.common.noUpdate}
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
+      </Animated.ScrollView>
     );
   }
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" />
-      
-      {/* Floating Header */}
-      <View style={[styles.customHeader, { height: insets.top + HEADER_ROW_HEIGHT }]}>
-        <Animated.View style={[styles.headerBg, { opacity: headerOpacity }]} />
-        <View style={[styles.headerContent, { marginTop: insets.top }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+      <View style={styles.headerWrap}>
+        <Animated.View style={[styles.headerBackground, { opacity: headerOpacity }]} />
+        <Animated.View style={[styles.headerDivider, { opacity: headerOpacity }]} />
+
+        <View style={[styles.headerRow, { paddingTop: insets.top }]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.goBack()}
+            style={styles.headerButton}
+          >
+            <Ionicons color={COLORS.text} name="arrow-back" size={24} />
           </TouchableOpacity>
-          <Animated.Text style={[styles.headerTitle, { opacity: headerOpacity }]} numberOfLines={1}>
-            {job.title}
-          </Animated.Text>
-          <View style={{ width: 40 }} />
+
+          <Animated.View
+            style={[
+              styles.headerTitleWrap,
+              {
+                opacity: headerOpacity,
+                transform: [{ translateY: headerTranslateY }],
+              },
+            ]}
+          >
+            <Text numberOfLines={1} style={styles.headerTitle}>
+              {job?.title || "Chi tiết việc làm"}
+            </Text>
+            {job?.company_name ? (
+              <Text numberOfLines={1} style={styles.headerSubtitle}>
+                {job.company_name}
+              </Text>
+            ) : null}
+          </Animated.View>
+
+          <View style={styles.headerButtonSpacer} />
         </View>
       </View>
 
-      <Animated.ScrollView
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: true,
+      {renderContent()}
+
+      {!loading && !error ? (
+        
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
+          <PrimaryButton
+            style={[styles.applyButton, { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }]}
+            textStyle={{ color: COLORS.text }}
+            title="Chỉnh sửa"
+            onPress={() => navigation.navigate("EmployerJobForm", { jobId })}
+          />
+          <PrimaryButton
+            disabled={deleting}
+            style={[styles.applyButton, { backgroundColor: COLORS.dangerSoft, borderWidth: 1, borderColor: COLORS.danger }]}
+            textStyle={{ color: COLORS.danger }}
+            title={deleting ? "Đang xóa..." : "Xóa tin"}
+            onPress={handleDelete}
+          />
+        </View>
+  
+      ) : null}
+    </View>
+  );
+}
+
+function MetaItem({ icon, label, value, withRightBorder = false }) {
+  return (
+    <View style={[styles.metaItem, withRightBorder && styles.metaItemWithRightBorder]}>
+      <Ionicons color={COLORS.action} name={icon} size={18} style={styles.metaItemIcon} />
+      <Text style={styles.metaLabel}>{label}</Text>
+      <Text numberOfLines={2} style={styles.metaValue}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function SectionBlock({ title, content }) {
+  const lines = formatDetailLines(content || LABELS.common.noUpdate, title);
+
+  return (
+    <View>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.detailTextBlock}>
+        {lines.map((line, index) => {
+          if (line.type === "heading") {
+            return (
+              <Text key={`${line.text}-${index}`} style={styles.detailHeading}>
+                {line.text}
+              </Text>
+            );
+          }
+
+          if (line.type === "bullet") {
+            return (
+              <View key={`${line.text}-${index}`} style={styles.bulletRow}>
+                <Text style={styles.bulletDot}>•</Text>
+                <Text style={styles.bulletText}>{line.text}</Text>
+              </View>
+            );
+          }
+
+          return (
+            <Text key={`${line.text}-${index}`} style={styles.sectionText}>
+              {line.text}
+            </Text>
+          );
         })}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Banner Section */}
-        <View style={[styles.banner, { paddingTop: insets.top + HEADER_ROW_HEIGHT + 10 }]}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={getCompanyLogoSource(job.logo_path)}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={styles.jobTitleText}>{job.title}</Text>
-          <Text style={styles.companyNameText}>{job.company_name}</Text>
-
-          <View style={styles.gridInfo}>
-            <InfoBox label="Mức lương" value={job.salary} icon="cash-outline" isLeft />
-            <InfoBox label="Địa điểm" value={job.location_name} icon="location-outline" />
-            <InfoBox label="Hình thức" value={getWorkTypeLabel(job.work_type)} icon="time-outline" isLeft />
-            <InfoBox label="Số lượng" value={`${job.quantity} người`} icon="people-outline" />
-          </View>
-        </View>
-
-        {/* Details Section */}
-        <View style={styles.detailsBody}>
-          <DetailSection title="Mô tả công việc" content={job.description} />
-          <DetailSection title="Yêu cầu" content={job.requirements} />
-          <DetailSection title="Quyền lợi" content={job.benefits} />
-        </View>
-      </Animated.ScrollView>
-
-      {/* Bottom Action Bar */}
-      <View style={[styles.bottomActions, { paddingBottom: insets.bottom + 10 }]}>
-        <TouchableOpacity style={styles.btnDelete} onPress={handleDelete} disabled={deleting}>
-          {deleting ? <ActivityIndicator color={COLORS.danger} /> : <Ionicons name="trash-outline" size={22} color={COLORS.danger} />}
-        </TouchableOpacity>
-        <PrimaryButton 
-          title="Chỉnh sửa tin" 
-          onPress={handleEdit} 
-          style={styles.btnEdit} 
-        />
       </View>
     </View>
   );
 }
 
-// Sub-components
-const InfoBox = ({ label, value, icon, isLeft }) => (
-  <View style={[styles.infoBox, isLeft && styles.borderRight]}>
-    <Ionicons name={icon} size={20} color={COLORS.action} />
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue} numberOfLines={1}>{value || "Thỏa thuận"}</Text>
-  </View>
-);
+function formatDetailLines(content, title) {
+  const skipHeading = title.toLowerCase();
 
-const DetailSection = ({ title, content }) => (
-  <View style={styles.sectionMargin}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    <Text style={styles.sectionText}>{content || "Chưa có thông tin cập nhật."}</Text>
-  </View>
-);
+  return String(content)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const normalizedLine = line.replace(/^[-•]\s*/, "").trim();
+      const lowerLine = normalizedLine.replace(/:$/, "").toLowerCase();
+
+      if (lowerLine === skipHeading) {
+        return null;
+      }
+
+      if (line.startsWith("-") || line.startsWith("•")) {
+        return { text: normalizedLine, type: "bullet" };
+      }
+
+      if (line.endsWith(":")) {
+        return { text: line.replace(/:$/, ""), type: "heading" };
+      }
+
+      return { text: line, type: "text" };
+    })
+    .filter(Boolean);
+}
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.surface },
-  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  
-  customHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
-  headerBg: { ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerContent: { height: HEADER_ROW_HEIGHT, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8 },
-  backButton: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: COLORS.text, flex: 1, textAlign: "center" },
-
-  banner: { backgroundColor: "#F8FAFA", alignItems: "center", paddingHorizontal: 20, paddingBottom: 20 },
-  logoContainer: { width: 80, height: 80, backgroundColor: "#FFF", borderRadius: 16, elevation: 2, justifyContent: "center", alignItems: "center", marginBottom: 15, borderWidth: 1, borderColor: COLORS.border },
-  logo: { width: "70%", height: "70%" },
-  jobTitleText: { fontSize: 22, fontWeight: "700", color: COLORS.text, textAlign: "center" },
-  companyNameText: { fontSize: 16, color: COLORS.muted, marginTop: 5 },
-
-  gridInfo: { flexDirection: "row", flexWrap: "wrap", marginTop: 25, borderTopWidth: 1, borderTopColor: "#EEE" },
-  infoBox: { width: "50%", paddingVertical: 15, alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#EEE" },
-  borderRight: { borderRightWidth: 1, borderRightColor: "#EEE" },
-  infoLabel: { fontSize: 12, color: COLORS.muted, marginTop: 4 },
-  infoValue: { fontSize: 14, fontWeight: "600", color: COLORS.text, marginTop: 2 },
-
-  detailsBody: { padding: 20 },
-  sectionMargin: { marginBottom: 25 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text, marginBottom: 10 },
-  sectionText: { fontSize: 15, color: "#444", lineHeight: 24 },
-
-  bottomActions: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#FFF", flexDirection: "row", padding: 15, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  btnDelete: { width: 50, height: 50, borderRadius: 12, borderWidth: 1, borderColor: COLORS.danger, justifyContent: "center", alignItems: "center" },
-  btnEdit: { flex: 1, height: 50 },
+  screen: {
+    backgroundColor: COLORS.surface,
+    flex: 1,
+  },
+  headerWrap: {
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 20,
+  },
+  headerBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.surface,
+  },
+  headerDivider: {
+    backgroundColor: COLORS.border,
+    bottom: 0,
+    height: 1,
+    left: 0,
+    position: "absolute",
+    right: 0,
+  },
+  headerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    minHeight: HEADER_ROW_HEIGHT,
+    paddingHorizontal: 12,
+  },
+  headerButton: {
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  headerButtonSpacer: {
+    width: 40,
+  },
+  headerTitleWrap: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  headerTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  headerSubtitle: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 3,
+  },
+  scrollContent: {
+    backgroundColor: COLORS.surface,
+  },
+  heroSection: {
+    backgroundColor: "#F2F6F6",
+    paddingBottom: 14,
+    paddingHorizontal: 18,
+  },
+  logoShell: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  logoBadge: {
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderRadius: 18,
+    height: 78,
+    justifyContent: "center",
+    width: 78,
+    overflow: "hidden",
+  },
+  logoBadgeText: {
+    color: COLORS.surface,
+    fontSize: 34,
+    fontWeight: "700",
+  },
+  logoImage: {
+    height: "82%",
+    width: "82%",
+  },
+  summaryContent: {
+    paddingBottom: 4,
+    paddingHorizontal: 6,
+  },
+  heroTitle: {
+    color: COLORS.text,
+    fontSize: 21,
+    fontWeight: "700",
+    lineHeight: 28,
+    textAlign: "center",
+  },
+  heroCompany: {
+    color: COLORS.muted,
+    fontSize: 15,
+    textAlign: "center",
+  },
+  companyLink: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 2,
+    marginTop: 8,
+    maxWidth: "100%",
+  },
+  metaGrid: {
+    borderTopColor: "rgba(17, 17, 17, 0.08)",
+    borderTopWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 18,
+  },
+  metaItem: {
+    alignItems: "center",
+    borderBottomColor: "rgba(17, 17, 17, 0.06)",
+    borderBottomWidth: 1,
+    justifyContent: "flex-start",
+    minHeight: 94,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    width: "50%",
+  },
+  metaItemWithRightBorder: {
+    borderRightColor: "rgba(17, 17, 17, 0.06)",
+    borderRightWidth: 1,
+  },
+  metaItemIcon: {
+    marginBottom: 8,
+  },
+  metaLabel: {
+    color: COLORS.muted,
+    fontSize: 13,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  metaValue: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  contentSection: {
+    backgroundColor: COLORS.surface,
+    paddingBottom: 8,
+    paddingTop: 12,
+  },
+  contentInner: {
+    paddingHorizontal: 18,
+  },
+  sectionSpacing: {
+    height: 22,
+  },
+  divider: {
+    backgroundColor: COLORS.border,
+    height: 1,
+    marginVertical: 18,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  companySectionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  companySectionAction: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 2,
+  },
+  companySectionActionText: {
+    color: COLORS.action,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  sectionText: {
+    color: "#2B2B2B",
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  detailTextBlock: {
+    gap: 6,
+  },
+  detailHeading: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  bulletRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+    paddingRight: 4,
+  },
+  bulletDot: {
+    color: COLORS.text,
+    fontSize: 16,
+    lineHeight: 23,
+    width: 10,
+  },
+  bulletText: {
+    color: "#2B2B2B",
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  centerBox: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    paddingTop: 120,
+  },
+  mutedText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginTop: 8,
+  },
+  bottomBar: {
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderTopColor: COLORS.border,
+    borderTopWidth: 1,
+    bottom: 0,
+    flexDirection: "row",
+    gap: 10,
+    left: 0,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    position: "absolute",
+    right: 0,
+  },
+  saveButton: {
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 50,
+    width: 54,
+  },
+  saveButtonActive: {
+    backgroundColor: COLORS.dangerSoft,
+    borderColor: COLORS.favorite,
+  },
+  applyButton: {
+    backgroundColor: COLORS.action,
+    flex: 1,
+  },
+  applyButtonDisabled: {
+    backgroundColor: COLORS.disabled,
+  },
 });
