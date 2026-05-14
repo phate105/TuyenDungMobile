@@ -1,22 +1,26 @@
 import { useEffect, useRef } from "react";
-
 import { Ionicons } from "@expo/vector-icons";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Animated, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ROLES } from "../constants/appConstants";
 import { COLORS } from "../constants/theme";
 import { LABELS } from "../constants/labels";
-import AdminJobDetailScreen from "../screens/admin/AdminJobDetailScreen";
+// Admin Screens
+import AdminApplicationsScreen from "../screens/admin/AdminApplicationsScreen";
 import AdminHomeScreen from "../screens/admin/AdminHomeScreen";
 import PendingJobsScreen from "../screens/admin/PendingJobsScreen";
 import UserDetailScreen from "../screens/admin/UserDetailScreen";
 import UserManagementScreen from "../screens/admin/UserManagementScreen";
+import ApplicationsDetailScreen from "../screens/admin/ApplicationsDetailScreen";
+import AdminJobDetailScreen from "../screens/admin/AdminJobDetailScreen";
+// Auth Screens
 import LoginScreen from "../screens/auth/LoginScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
+// Candidate Screens
 import ApplyScreen from "../screens/candidate/ApplyScreen";
 import CandidateProfileScreen from "../screens/candidate/CandidateProfileScreen";
 import CompanyDetailScreen from "../screens/candidate/CompanyDetailScreen";
@@ -35,6 +39,7 @@ import SearchScreen from "../screens/candidate/SearchScreen";
 import SearchResultScreen from "../screens/candidate/SearchResultScreen";
 import SettingsScreen from "../screens/candidate/SettingsScreen";
 import SkillFormScreen from "../screens/candidate/SkillFormScreen";
+// Employer Screens
 import ApplicantCVScreen from "../screens/employer/ApplicantCVScreen";
 import CompanyProfileScreen from "../screens/employer/CompanyProfileScreen";
 import EmployerHomeScreen from "../screens/employer/EmployerHomeScreen";
@@ -42,11 +47,14 @@ import EmployerJobDetailScreen from "../screens/employer/EmployerJobDetailScreen
 import EmployerJobFormScreen from "../screens/employer/EmployerJobFormScreen";
 import EmployerJobsScreen from "../screens/employer/EmployerJobsScreen";
 import JobApplicationsScreen from "../screens/employer/JobApplicationsScreen";
+import EmployerApplicationsScreen from "../screens/employer/EmployerApplicationsScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function CandidateTabBar({ state, descriptors, navigation }) {
+// --- COMPONENTS DÙNG CHUNG CHO TABBAR ---
+
+function AppTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 12);
 
@@ -59,31 +67,21 @@ function CandidateTabBar({ state, descriptors, navigation }) {
 
         const onPress = () => {
           const event = navigation.emit({
-            canPreventDefault: true,
-            target: route.key,
             type: "tabPress",
+            target: route.key,
+            canPreventDefault: true,
           });
-
           if (!isFocused && !event.defaultPrevented) {
-            
             navigation.navigate(route.name);
           }
         };
 
-        const onLongPress = () => {
-          navigation.emit({
-            target: route.key,
-            type: "tabLongPress",
-          });
-        };
-
         return (
-          <CandidateTabBarItem
-            bottomInset={bottomInset}
+          <AppTabBarItem
             key={route.key}
+            bottomInset={bottomInset}
             isFocused={isFocused}
             label={label}
-            onLongPress={onLongPress}
             onPress={onPress}
             routeName={route.name}
           />
@@ -93,42 +91,46 @@ function CandidateTabBar({ state, descriptors, navigation }) {
   );
 }
 
-function CandidateTabBarItem({ bottomInset, isFocused, label, onLongPress, onPress, routeName }) {
+function AppTabBarItem({ bottomInset, isFocused, label, onPress, routeName }) {
   const scaleValue = useRef(new Animated.Value(1)).current;
+
+  // Bảng tra cứu Icon tổng hợp cho tất cả các vai trò
   const iconNames = {
+    // Candidate
     CandidateProfileTab: "person",
     ExploreTab: "home",
     MyJobsTab: "briefcase",
+    // Employer
+    EmployerHomeTab: "grid",
+    EmployerJobsTab: "briefcase",
+    EmployerApplicationsTab: "document-attach",
+    CompanyProfileTab: "business",
+    // Admin
+    AdminHomeTab: "grid",
+    AdminJobsTab: "document-text",
+    AdminUsersTab: "people",
+    AdminApplicationsTab: "document-attach",
   };
 
   const handlePressIn = () => {
-    Animated.spring(scaleValue, {
-      toValue: 0.8,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scaleValue, { toValue: 0.8, useNativeDriver: true }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleValue, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scaleValue, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
   };
 
-  const iconName = isFocused ? iconNames[routeName] : `${iconNames[routeName]}-outline`;
+  const baseIcon = iconNames[routeName] || "help-circle";
+  const iconName = isFocused ? baseIcon : `${baseIcon}-outline`;
 
   return (
     <Pressable
-      accessibilityRole="button"
-      onLongPress={onLongPress}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.tabButton}
     >
-      <View style={[styles.tabButtonContent, { paddingBottom: bottomInset, paddingTop: Math.max(8, bottomInset > 12 ? 6 : 8) }]}>
+      <View style={[styles.tabButtonContent, { paddingBottom: bottomInset, paddingTop: 10 }]}>
         <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
           <Ionicons color={isFocused ? COLORS.text : COLORS.mutedLight} name={iconName} size={22} />
         </Animated.View>
@@ -138,17 +140,15 @@ function CandidateTabBarItem({ bottomInset, isFocused, label, onLongPress, onPre
   );
 }
 
+// --- CONFIG OPTIONS ---
+
 const stackScreenOptions = {
   animation: "slide_from_right",
   animationDuration: 110,
   gestureEnabled: true,
-  headerStyle: {
-    backgroundColor: COLORS.header,
-  },
+  headerStyle: { backgroundColor: COLORS.header },
   headerTintColor: COLORS.surface,
-  headerTitleStyle: {
-    fontWeight: "900",
-  },
+  headerTitleStyle: { fontWeight: "900" },
 };
 
 const lightStackScreenOptions = {
@@ -156,15 +156,12 @@ const lightStackScreenOptions = {
   animationDuration: 110,
   gestureEnabled: true,
   headerShadowVisible: false,
-  headerStyle: {
-    backgroundColor: COLORS.surface,
-  },
+  headerStyle: { backgroundColor: COLORS.surface },
   headerTintColor: COLORS.text,
-  headerTitleStyle: {
-    color: COLORS.text,
-    fontWeight: "700",
-  },
+  headerTitleStyle: { color: COLORS.text, fontWeight: "700" },
 };
+
+// --- NAVIGATORS ---
 
 function AuthNavigator({ onAuthenticated }) {
   return (
@@ -172,14 +169,7 @@ function AuthNavigator({ onAuthenticated }) {
       <Stack.Screen name="Login" options={{ headerShown: false }}>
         {(props) => <LoginScreen {...props} onAuthenticated={onAuthenticated} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="Register"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: "\u0110\u0103ng k\u00fd",
-        }}
-      >
+      <Stack.Screen name="Register" options={{ ...lightStackScreenOptions, title: "Đăng ký" }}>
         {(props) => <RegisterScreen {...props} onAuthenticated={onAuthenticated} />}
       </Stack.Screen>
     </Stack.Navigator>
@@ -189,13 +179,8 @@ function AuthNavigator({ onAuthenticated }) {
 function CandidateTabs({ user }) {
   return (
     <Tab.Navigator
-      tabBar={(props) => <CandidateTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneContainerStyle: {
-          backgroundColor: "#F0F2F5",
-        },
-      }}
+      tabBar={(props) => <AppTabBar {...props} />}
+      screenOptions={{ headerShown: false, sceneContainerStyle: { backgroundColor: "#F0F2F5" } }}
     >
       <Tab.Screen name="ExploreTab" options={{ title: LABELS.tabs.explore }}>
         {(props) => <ExploreScreen {...props} user={user} />}
@@ -210,28 +195,77 @@ function CandidateTabs({ user }) {
   );
 }
 
+// AdminTabs đã được đồng bộ
+function AdminTabs({ user, onLogout }) {
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <AppTabBar {...props} />}
+      screenOptions={{
+        headerStyle: { backgroundColor: COLORS.surface },
+        headerShadowVisible: false,
+        headerTintColor: COLORS.text,
+        headerTitleAlign: "center",
+        headerTitleStyle: { fontWeight: "800" },
+      }}
+    >
+      <Tab.Screen name="AdminHomeTab" options={{ title: "Tổng quan" }}>
+        {(props) => <AdminHomeScreen {...props} user={user} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen name="AdminApplicationsTab" options={{ title: "Đơn ứng tuyển" }}>
+        {(props) => <AdminApplicationsScreen {...props} user={user} />}
+      </Tab.Screen>
+      
+      <Tab.Screen name="AdminJobsTab" options={{ title: "Tin tuyển dụng" }}>
+        {(props) => <PendingJobsScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="AdminUsersTab" options={{ title: "Tài khoản" }}>
+        {(props) => <UserManagementScreen {...props} user={user} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+}
+
+// EmployerTabs đã được đồng bộ
+function EmployerTabs({ user, onLogout }) {
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <AppTabBar {...props} />}
+      screenOptions={{
+        headerStyle: { backgroundColor: COLORS.surface },
+        headerShadowVisible: false,
+        headerTintColor: COLORS.text,
+        headerTitleAlign: "center",
+        headerTitleStyle: { fontWeight: "800" },
+      }}
+    >
+      <Tab.Screen name="EmployerHomeTab" options={{ title: "Tổng quan" }}>
+        {(props) => <EmployerHomeScreen {...props} user={user} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen name="EmployerJobsTab" options={{ title: "Tin tuyển dụng" }}>
+        {(props) => <EmployerJobsScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="EmployerApplicationsTab" options={{ title: "Đơn ứng tuyển" }}>
+        {(props) => <EmployerApplicationsScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="CompanyProfileTab" options={{ title: "Công ty" }}>
+        {(props) => <CompanyProfileScreen {...props} user={user} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+}
+
+// --- CÁC NAVIGATOR CHÍNH (Candidate, Employer, Admin) ---
+
 function CandidateNavigator({ user, onLogout }) {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="CandidateTabs" options={{ headerShown: false }}>
         {(props) => <CandidateTabs {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="JobDetail"
-        options={{
-          headerShown: false,
-        }}
-      >
+      <Stack.Screen name="JobDetail" options={{ headerShown: false }}>
         {(props) => <JobDetailScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="CompanyDetail"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: "Chi ti\u1ebft c\u00f4ng ty",
-        }}
-      >
+      <Stack.Screen name="CompanyDetail" options={{ ...lightStackScreenOptions, title: "Chi tiết công ty" }}>
         {(props) => <CompanyDetailScreen {...props} user={user} />}
       </Stack.Screen>
       <Stack.Screen name="Search" options={{ headerShown: false }}>
@@ -240,114 +274,37 @@ function CandidateNavigator({ user, onLogout }) {
       <Stack.Screen name="SearchResult" options={{ headerShown: false }}>
         {(props) => <SearchResultScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="Apply"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.apply,
-        }}
-      >
+      <Stack.Screen name="Apply" options={{ ...lightStackScreenOptions, title: LABELS.screens.apply }}>
         {(props) => <ApplyScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="Settings"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.settings,
-        }}
-      >
+      <Stack.Screen name="Settings" options={{ ...lightStackScreenOptions, title: LABELS.screens.settings }}>
         {(props) => <SettingsScreen {...props} user={user} onLogout={onLogout} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="EditCandidateProfile"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.editProfile,
-        }}
-      >
+      <Stack.Screen name="EditCandidateProfile" options={{ ...lightStackScreenOptions, title: LABELS.screens.editProfile }}>
         {(props) => <EditCandidateProfileScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="JobPreference"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.jobPreference,
-        }}
-      >
+      <Stack.Screen name="JobPreference" options={{ ...lightStackScreenOptions, title: LABELS.screens.jobPreference }}>
         {(props) => <JobPreferenceScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="CVManagement"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.cvManagement,
-        }}
-      >
+      <Stack.Screen name="CVManagement" options={{ ...lightStackScreenOptions, title: LABELS.screens.cvManagement }}>
         {(props) => <CVManagementScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="CreateCV"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.createCV,
-        }}
-      >
+      <Stack.Screen name="CreateCV" options={{ ...lightStackScreenOptions, title: LABELS.screens.createCV }}>
         {(props) => <CreateCVScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="PersonalInfoForm"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.personalInfo,
-        }}
-      >
+      <Stack.Screen name="PersonalInfoForm" options={{ ...lightStackScreenOptions, title: LABELS.screens.personalInfo }}>
         {(props) => <PersonalInfoFormScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="ExperienceForm"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.experience,
-        }}
-      >
+      <Stack.Screen name="ExperienceForm" options={{ ...lightStackScreenOptions, title: LABELS.screens.experience }}>
         {(props) => <ExperienceFormScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="EducationForm"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.education,
-        }}
-      >
+      <Stack.Screen name="EducationForm" options={{ ...lightStackScreenOptions, title: LABELS.screens.education }}>
         {(props) => <EducationFormScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="SkillForm"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.skills,
-        }}
-      >
+      <Stack.Screen name="SkillForm" options={{ ...lightStackScreenOptions, title: LABELS.screens.skills }}>
         {(props) => <SkillFormScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="CVPreview"
-        options={{
-          ...lightStackScreenOptions,
-          headerBackTitleVisible: false,
-          title: LABELS.screens.cvPreview,
-        }}
-      >
+      <Stack.Screen name="CVPreview" options={{ ...lightStackScreenOptions, title: LABELS.screens.cvPreview }}>
         {(props) => <CVPreviewScreen {...props} user={user} />}
       </Stack.Screen>
     </Stack.Navigator>
@@ -363,90 +320,21 @@ function EmployerNavigator({ user, onLogout }) {
       <Stack.Screen
         name="EmployerJobForm"
         options={({ route }) => ({
-          headerBackTitleVisible: false,
-          title: route.params?.jobId ? "S\u1eeda tin tuy\u1ec3n d\u1ee5ng" : "\u0110\u0103ng tin tuy\u1ec3n d\u1ee5ng",
+          title: route.params?.jobId ? "Sửa tin tuyển dụng" : "Đăng tin tuyển dụng",
         })}
       >
         {(props) => <EmployerJobFormScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="EmployerJobDetail"
-        options={{
-          headerBackTitleVisible: false,
-          title: "Chi ti\u1ebft tin",
-        }}
-      >
+      <Stack.Screen name="EmployerJobDetail" options={{ title: "Chi tiết tin" }}>
         {(props) => <EmployerJobDetailScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="JobApplications"
-        options={{
-          headerBackTitleVisible: false,
-          title: "\u1ee8ng vi\u00ean \u1ee9ng tuy\u1ec3n",
-        }}
-      >
+      <Stack.Screen name="JobApplications" options={{ title: "Danh sách ứng tuyển" }}>
         {(props) => <JobApplicationsScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="ApplicantCV"
-        options={{
-          headerBackTitleVisible: false,
-          title: "H\u1ed3 s\u01a1 \u1ee9ng vi\u00ean",
-        }}
-      >
+      <Stack.Screen name="ApplicantCV" options={{ title: "Hồ sơ ứng viên" }}>
         {(props) => <ApplicantCVScreen {...props} user={user} />}
       </Stack.Screen>
     </Stack.Navigator>
-  );
-}
-
-function EmployerTabs({ user, onLogout }) {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerStyle: {
-          backgroundColor: COLORS.surface,
-        },
-        headerShadowVisible: false,
-        headerTintColor: COLORS.text,
-        headerTitleAlign: "center",
-        headerTitleStyle: {
-          fontWeight: "800",
-        },
-        tabBarActiveTintColor: COLORS.text,
-        tabBarInactiveTintColor: COLORS.mutedLight,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-        },
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          height: 44,
-          paddingBottom: 4,
-          paddingTop: 4,
-        },
-        tabBarIcon: ({ color, size, focused }) => {
-          const icons = {
-            EmployerHomeTab: "grid",
-            EmployerJobsTab: "briefcase",
-            CompanyProfileTab: "business",
-          };
-          const name = focused ? icons[route.name] : `${icons[route.name]}-outline`;
-          return <Ionicons color={color} name={name} size={size} />;
-        },
-      })}
-    >
-      <Tab.Screen name="EmployerHomeTab" options={{ title: "Tổng quan" }}>
-        {(props) => <EmployerHomeScreen {...props} user={user} onLogout={onLogout} />}
-      </Tab.Screen>
-      <Tab.Screen name="EmployerJobsTab" options={{ title: "Tin tuyển dụng" }}>
-        {(props) => <EmployerJobsScreen {...props} user={user} />}
-      </Tab.Screen>
-      <Tab.Screen name="CompanyProfileTab" options={{ title: "Công ty" }}>
-        {(props) => <CompanyProfileScreen {...props} user={user} />}
-      </Tab.Screen>
-    </Tab.Navigator>
   );
 }
 
@@ -456,86 +344,26 @@ function AdminNavigator({ user, onLogout }) {
       <Stack.Screen name="AdminTabs" options={{ headerShown: false }}>
         {(props) => <AdminTabs {...props} user={user} onLogout={onLogout} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="AdminJobDetail"
-        options={{
-          headerBackTitleVisible: false,
-          title: "Chi tiết tin",
-        }}
-      >
+      <Stack.Screen name="AdminApplicationDetail" options={{ title: "Đơn ứng tuyển" }}>
+        {(props) => <ApplicationsDetailScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="AdminJobDetail" options={{ title: "Chi tiết tin tuyển dụng" }}>
         {(props) => <AdminJobDetailScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="UserDetail"
-        options={{
-          headerBackTitleVisible: false,
-          title: "Chi tiết tài khoản",
-        }}
-      >
+      <Stack.Screen name="UserDetail" options={{ title: "Chi tiết tài khoản" }}>
         {(props) => <UserDetailScreen {...props} user={user} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
 }
 
-function AdminTabs({ user, onLogout }) {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerStyle: {
-          backgroundColor: COLORS.surface,
-        },
-        headerShadowVisible: false,
-        headerTintColor: COLORS.text,
-        headerTitleAlign: "center",
-        headerTitleStyle: {
-          fontWeight: "800",
-        },
-        tabBarActiveTintColor: COLORS.text,
-        tabBarInactiveTintColor: COLORS.mutedLight,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-        },
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          height: 44,
-          paddingBottom: 4,
-          paddingTop: 4,
-        },
-        tabBarIcon: ({ color, size, focused }) => {
-          const icons = {
-            AdminHomeTab: "grid",
-            AdminJobsTab: "document-text",
-            AdminUsersTab: "people",
-          };
-          const name = focused ? icons[route.name] : `${icons[route.name]}-outline`;
-          return <Ionicons color={color} name={name} size={size} />;
-        },
-      })}
-    >
-      <Tab.Screen name="AdminHomeTab" options={{ title: "Tổng quan" }}>
-        {(props) => <AdminHomeScreen {...props} user={user} onLogout={onLogout} />}
-      </Tab.Screen>
-      <Tab.Screen name="AdminJobsTab" options={{ title: "Tin tuyển dụng" }}>
-        {(props) => <PendingJobsScreen {...props} user={user} />}
-      </Tab.Screen>
-      <Tab.Screen name="AdminUsersTab" options={{ title: "Tài khoản" }}>
-        {(props) => <UserManagementScreen {...props} user={user} />}
-      </Tab.Screen>
-    </Tab.Navigator>
-  );
-}
 function RoleNavigator({ user, onLogout }) {
   if (user.role === ROLES.ADMIN) {
     return <AdminNavigator user={user} onLogout={onLogout} />;
   }
-
   if (user.role === ROLES.EMPLOYER) {
     return <EmployerNavigator user={user} onLogout={onLogout} />;
   }
-
   return <CandidateNavigator user={user} onLogout={onLogout} />;
 }
 
@@ -554,26 +382,22 @@ export default function AppNavigator({ user, onAuthenticated, onLogout }) {
 const styles = StyleSheet.create({
   tabBar: {
     alignItems: "stretch",
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
     borderTopColor: COLORS.border,
     borderTopWidth: 1,
     flexDirection: "row",
-    position: "relative",
+    paddingHorizontal: 8,
   },
   tabButton: {
     alignItems: "center",
     alignSelf: "stretch",
     flex: 1,
     justifyContent: "center",
-    overflow: "hidden",
-    paddingTop: 0,
-    position: "relative",
   },
   tabButtonContent: {
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    zIndex: 2,
   },
   tabLabel: {
     color: COLORS.mutedLight,
@@ -583,24 +407,5 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: COLORS.text,
-  },
-  tabPressOverlay: {
-    backgroundColor: "rgba(17, 17, 17, 0.09)",
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-    right: 0,
-    top: 0,
-    zIndex: 1,
-  },
-  tabActiveLine: {
-    backgroundColor: COLORS.text,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
-    height: 2,
-    left: 0,
-    position: "absolute",
-    top: 0,
-    zIndex: 3,
   },
 });

@@ -21,7 +21,7 @@ const badgeStyles = {
     backgroundColor: COLORS.infoSoft,
     color: COLORS.info,
   },
-  [APPLICATION_STATUS.VIEWED]: {
+  [APPLICATION_STATUS.UNDER_REVIEW]: {
     backgroundColor: COLORS.warningSoft,
     color: COLORS.warning,
   },

@@ -662,6 +662,20 @@ function decodeMojibake(value) {
   }
 }
 
+export async function getJobByIdForEmployer(jobId) {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync(
+    `
+      ${jobSelectQuery}
+      WHERE j.id = ?
+      LIMIT 1
+    `,
+    [jobId] 
+  );
+
+  return row ? sanitizeJobRecord(row) : null;
+}
+
 export const jobService = {
   getApprovedJobs,
   getApprovedJobCount,
@@ -677,4 +691,5 @@ export const jobService = {
   unsaveJob,
   isJobSaved,
   getSavedJobs,
+  getJobByIdForEmployer,
 };

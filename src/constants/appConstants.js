@@ -17,7 +17,7 @@ export const JOB_STATUS = {
 
 export const APPLICATION_STATUS = {
   SUBMITTED: "submitted",
-  VIEWED: "viewed",
+  UNDER_REVIEW: "viewed",
   SUITABLE: "suitable",
   REJECTED: "rejected",
 };

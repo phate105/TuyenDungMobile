@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   screenContent: {
     paddingBottom: 0,
     paddingHorizontal: 0,
-    paddingTop: 0,
+    paddingTop: 20,
   },
   headerPanel: {
     backgroundColor: COLORS.background,

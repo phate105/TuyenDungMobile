@@ -272,7 +272,8 @@ export async function getApplicationById(employerId, applicationId) {
 
 export async function updateApplicationStatus(employerId, applicationId, status) {
   const allowedStatuses = [
-    APPLICATION_STATUS.VIEWED,
+    APPLICATION_STATUS.SUBMITTED,
+    APPLICATION_STATUS.UNDER_REVIEW,
     APPLICATION_STATUS.SUITABLE,
     APPLICATION_STATUS.REJECTED,
   ];
@@ -298,6 +299,59 @@ export async function updateApplicationStatus(employerId, applicationId, status)
     [status, applicationId]
   );
 }
+// Hàm reset hồ sơ nhà tuyển dụng
+export async function resetCompanyProfile(userId) {
+  const db = await getDatabase();
+  try {
+    // 1. Tìm ID công ty của người dùng này
+    const company = await db.getFirstAsync(
+      "SELECT id FROM company_profiles WHERE user_id = ?", 
+      [userId]
+    );
+
+    if (company) {
+      // 2. Xóa các đơn ứng tuyển liên quan đến các công việc của công ty này (Khóa ngoại)
+      await db.runAsync(
+        "DELETE FROM applications WHERE job_id IN (SELECT id FROM jobs WHERE company_id = ?)",
+        [company.id]
+      );
+
+      // 3. Xóa tất cả tin tuyển dụng của công ty này
+      await db.runAsync("DELETE FROM jobs WHERE company_id = ?", [company.id]);
+
+      // 4. Cuối cùng mới xóa hồ sơ công ty
+      await db.runAsync("DELETE FROM company_profiles WHERE id = ?", [company.id]);
+      
+      return { success: true };
+    }
+    return { success: false, message: "Không tìm thấy hồ sơ để xóa." };
+  } catch (error) {
+    throw new Error("Lỗi khi reset hồ sơ: " + error.message);
+  }
+}
+
+export async function getApplicationsByEmployer(employerId) {
+  const db = await getDatabase();
+
+  return db.getAllAsync(
+    `
+      SELECT
+        a.id,
+        a.job_id,
+        a.candidate_id,
+        a.status,
+        a.created_at,
+        j.title AS job_title,
+        u.full_name AS candidate_name
+      FROM applications a
+      JOIN jobs j ON j.id = a.job_id
+      JOIN users u ON u.id = a.candidate_id
+      WHERE j.employer_id = ?
+      ORDER BY a.created_at DESC
+    `,
+    [employerId]
+  );
+}
 
 export const employerService = {
   getCompanyProfile,
@@ -310,4 +364,6 @@ export const employerService = {
   getApplicationsByJob,
   getApplicationById,
   updateApplicationStatus,
+  resetCompanyProfile,
+  getApplicationsByEmployer,
 };

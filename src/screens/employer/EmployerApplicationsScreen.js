@@ -4,66 +4,66 @@ import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import Screen from "../../components/Screen";
-import PrimaryButton from "../../components/PrimaryButton";
 import StatusBadge from "../../components/StatusBadge";
-import { JOB_STATUS } from "../../constants/appConstants";
 import { COLORS, RADII } from "../../constants/theme";
 import { employerService } from "../../services/employerService";
+import { APPLICATION_STATUS } from "../../constants/appConstants";
 
 const PAGE_SIZE = 10;
 
-const statusOptions = [
+const applicationStatusOptions = [
   { label: "Tất cả", value: "all" },
-  { label: "Chờ duyệt", value: JOB_STATUS.PENDING },
-  { label: "Đã duyệt", value: JOB_STATUS.APPROVED },
-  { label: "Bị từ chối", value: JOB_STATUS.REJECTED },
+  { label: "Đơn mới", value: APPLICATION_STATUS.SUBMITTED },
+  { label: "Đang xem xét", value: APPLICATION_STATUS.UNDER_REVIEW },
+  { label: "Phù hợp", value: APPLICATION_STATUS.SUITABLE },
+  { label: "Từ chối", value: APPLICATION_STATUS.REJECTED },
 ];
 
-export default function EmployerJobsScreen({ navigation, user }) {
+export default function EmployerApplicationsScreen({ navigation, user }) {
   const route = useRoute();
   const [activeFilter, setActiveFilter] = useState("all");
-  const [jobs, setJobs] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    navigation.setOptions({ headerShown: false }); // Ẩn header mặc định
     if (route.params?.status) {
       setActiveFilter(route.params.status);
       setPage(1);
       navigation.setParams({ status: undefined });
     }
-  }, [route.params?.status, navigation]);
+  }, [route.params?.status]);
 
   useFocusEffect(
     useCallback(() => {
+      navigation.setOptions({ headerShown: false });
       let active = true;
-      async function loadJobs() {
+      async function loadApplications() {
         try {
           setLoading(true);
-          const rows = await employerService.getJobsByEmployer(user.id);
-          if (active) setJobs(rows);
+          const rows = await employerService.getApplicationsByEmployer(user.id);
+          if (active) setApplications(rows);
         } catch (err) {
-          Alert.alert("Lỗi", "Không thể tải danh sách tin");
+          Alert.alert("Lỗi", "Không thể tải danh sách ứng viên");
         } finally {
           if (active) setLoading(false);
         }
       }
-      loadJobs();
+      loadApplications();
       return () => { active = false; };
-    }, [user.id])
+    }, [user.id, navigation])
   );
 
-  const filteredJobs = useMemo(() => {
-    if (activeFilter === "all") return jobs;
-    return jobs.filter((j) => j.status === activeFilter);
-  }, [jobs, activeFilter]);
+  const filteredApplications = useMemo(() => {
+    if (activeFilter === "all") return applications;
+    return applications.filter((app) => app.status === activeFilter);
+  }, [applications, activeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
-  const paginatedJobs = useMemo(() => {
+  const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE));
+  const paginatedData = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return filteredJobs.slice(start, start + PAGE_SIZE);
-  }, [filteredJobs, page]);
+    return filteredApplications.slice(start, start + PAGE_SIZE);
+  }, [filteredApplications, page]);
 
   const handleChangeFilter = (val) => {
     setActiveFilter(val);
@@ -72,25 +72,18 @@ export default function EmployerJobsScreen({ navigation, user }) {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <View style={styles.titleSection}>
-        <Text style={styles.screenTitle}>Tin tuyển dụng</Text>
-        <Text style={styles.screenSubtitle}>Quản lý các vị trí đang đăng tuyển</Text>
+      <View style={styles.headerTextSection}>
+        <Text style={styles.title}>Hồ sơ ứng tuyển</Text>
+        <Text style={styles.subtitle}>Quản lý và xem xét các ứng viên đã nộp hồ sơ</Text>
       </View>
-
-      <PrimaryButton 
-        title="Đăng tin mới" 
-        icon="add-circle-outline" // Nếu PrimaryButton của bạn hỗ trợ icon
-        onPress={() => navigation.navigate("EmployerJobForm")}
-        style={styles.postButton}
-      />
-
+      
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false} 
         contentContainerStyle={styles.filterScroll}
         style={styles.filterWrapper}
       >
-        {statusOptions.map((option) => {
+        {applicationStatusOptions.map((option) => {
           const isActive = option.value === activeFilter;
           return (
             <Pressable
@@ -107,36 +100,40 @@ export default function EmployerJobsScreen({ navigation, user }) {
       </ScrollView>
 
       <Text style={styles.countText}>
-        {filteredJobs.length} tin đăng • Trang {page}/{totalPages}
+        {filteredApplications.length} kết quả • Trang {page}/{totalPages}
       </Text>
     </View>
   );
 
-  function renderJob({ item }) {
+  function renderApplication({ item }) {
     return (
       <Pressable
-        onPress={() => navigation.navigate("EmployerJobDetail", { jobId: item.id })}
+        onPress={() => navigation.navigate("ApplicantCV", { applicationId: item.id })}
         style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       >
         <View style={styles.cardHeader}>
-          <Text numberOfLines={2} style={styles.jobTitle}>{item.title}</Text>
+          <Text numberOfLines={1} style={styles.candidateName}>
+            {item.candidate_name || "Ứng viên ẩn danh"}
+          </Text>
           <StatusBadge status={item.status} />
         </View>
-        
-        <View style={styles.metaRow}>
-          <Ionicons name="location-outline" size={14} color={COLORS.muted} />
-          <Text style={styles.metaText}>{item.location_name || "Chưa cập nhật"}</Text>
-          <Text style={styles.dot}>•</Text>
-          <Ionicons name="cash-outline" size={14} color={COLORS.muted} />
-          <Text style={styles.metaText}>{item.salary || "Thỏa thuận"}</Text>
+
+        <View style={styles.jobInfo}>
+          <Ionicons name="briefcase-outline" size={15} color={COLORS.muted} />
+          <Text numberOfLines={1} style={styles.jobTitle}>
+            Ứng tuyển: <Text style={styles.jobTitleBold}>{item.job_title}</Text>
+          </Text>
         </View>
 
         <View style={styles.cardFooter}>
-          <View style={styles.applicantBadge}>
-            <Ionicons name="people" size={14} color={COLORS.action} />
-            <Text style={styles.applicantText}>{item.application_count || 0} ứng viên</Text>
+          <View style={styles.metaInfo}>
+            <Ionicons name="calendar-outline" size={14} color={COLORS.muted} />
+            <Text style={styles.metaText}>Ngày nộp: {item.created_at}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
+          <View style={styles.actionLink}>
+            <Text style={styles.viewDetail}>Chi tiết</Text>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.action} />
+          </View>
         </View>
       </Pressable>
     );
@@ -147,28 +144,28 @@ export default function EmployerJobsScreen({ navigation, user }) {
       {loading ? (
         <View style={styles.centerBox}>
           <ActivityIndicator color={COLORS.action} size="large" />
-          <Text style={styles.mutedText}>Đang tải danh sách...</Text>
+          <Text style={styles.mutedText}>Đang tải hồ sơ...</Text>
         </View>
       ) : (
         <FlatList
-          data={paginatedJobs}
+          data={paginatedData}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.listPadding}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Không tìm thấy tin tuyển dụng.</Text>
+            <Text style={styles.emptyText}>Không tìm thấy hồ sơ nào.</Text>
           }
           ListFooterComponent={
-            filteredJobs.length > 0 && (
+            filteredApplications.length > 0 && (
               <PaginationControls
                 page={page}
                 totalPages={totalPages}
-                onNext={() => setPage(p => Math.min(totalPages, p + 1))}
-                onPrevious={() => setPage(p => Math.max(1, p - 1))}
+                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onPrevious={() => setPage((p) => Math.max(1, p - 1))}
               />
             )
           }
-          renderItem={renderJob}
+          renderItem={renderApplication}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -206,26 +203,21 @@ function PaginationControls({ page, totalPages, onNext, onPrevious }) {
 const styles = StyleSheet.create({
   headerContainer: {
     paddingTop: 20,
+    paddingBottom: 8,
   },
-  titleSection: {
+  headerTextSection: {
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  screenTitle: {
+  title: {
     fontSize: 26,
     fontWeight: "800",
     color: COLORS.text,
   },
-  screenSubtitle: {
+  subtitle: {
     fontSize: 15,
     color: COLORS.muted,
     marginTop: 4,
-  },
-  postButton: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderRadius: 12,
-    height: 52,
   },
   filterWrapper: {
     marginBottom: 16,
@@ -237,10 +229,10 @@ const styles = StyleSheet.create({
   filterButton: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     minWidth: 90,
     alignItems: 'center',
   },
@@ -256,6 +248,9 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: COLORS.action,
   },
+  listPadding: {
+    paddingBottom: 40,
+  },
   countText: {
     paddingHorizontal: 16,
     color: COLORS.muted,
@@ -263,9 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontWeight: "600",
     textTransform: 'uppercase',
-  },
-  listPadding: {
-    paddingBottom: 40,
+    letterSpacing: 0.5,
   },
   card: {
     marginHorizontal: 16,
@@ -274,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: RADII.lg,
     borderWidth: 1,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 14,
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -286,63 +279,79 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 8,
-  },
-  jobTitle: {
-    flex: 1,
-    color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
-  metaText: {
-    color: COLORS.muted,
-    fontSize: 13,
-    marginLeft: 4,
+  candidateName: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.text,
+    marginRight: 8,
   },
-  dot: {
-    marginHorizontal: 8,
-    color: COLORS.border,
+  jobInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+    backgroundColor: COLORS.background + "90",
+    padding: 10,
+    borderRadius: 10,
+  },
+  jobTitle: {
+    color: COLORS.muted,
+    fontSize: 14,
+    flex: 1,
+  },
+  jobTitleBold: {
+    fontWeight: "700",
+    color: COLORS.text,
   },
   cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: COLORS.border + "30",
   },
-  applicantBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.action + "10",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+  metaInfo: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
-  applicantText: {
+  metaText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  actionLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  viewDetail: {
     color: COLORS.action,
-    fontWeight: '700',
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: "700",
   },
   centerBox: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
+  },
+  mutedText: {
+    color: COLORS.muted,
+    fontSize: 14,
   },
   emptyText: {
     color: COLORS.muted,
+    fontSize: 15,
     textAlign: "center",
-    marginTop: 60,
+    marginTop: 80,
   },
   pagination: {
     flexDirection: 'row',
