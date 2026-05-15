@@ -38,5 +38,18 @@ export const COMPANY_LOGOS = {
 };
 
 export function getCompanyLogoSource(logoPath) {
-  return COMPANY_LOGOS[logoPath] || null;
+  if (!logoPath) {
+    return null;
+  }
+
+  const assetSource = COMPANY_LOGOS[logoPath];
+  if (assetSource) {
+    return assetSource;
+  }
+
+  if (typeof logoPath === "string" && /^(file|content|https?):\/\//i.test(logoPath)) {
+    return { uri: logoPath };
+  }
+
+  return null;
 }

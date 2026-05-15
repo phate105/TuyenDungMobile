@@ -17,7 +17,7 @@ const applicationSelectQuery = `
     j.status AS job_status,
     cat.name AS category_name,
     c.company_name,
-    c.logo_path,
+    COALESCE(c.avatar_uri, c.logo_path) AS logo_path,
     loc.name AS location_name,
     u.full_name AS candidate_name,
     u.email AS candidate_email,

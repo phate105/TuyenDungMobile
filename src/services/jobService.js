@@ -33,7 +33,7 @@ const jobSelectQuery = `
     c.company_name,
     c.company_field,
     c.company_address,
-    c.logo_path,
+    COALESCE(c.avatar_uri, c.logo_path) AS logo_path,
     c.website,
     c.company_size,
     cat.name AS category_name,

@@ -315,33 +315,40 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     flex: 1,
+    minWidth: 0,
   },
   cardTitle: {
     color: COLORS.text,
     fontSize: 15,
     fontWeight: "600",
     lineHeight: 20,
+    flexShrink: 1,
   },
   cardCompany: {
     color: "#444444",
     fontSize: 13,
     fontWeight: "400",
     marginTop: 3,
+    flexShrink: 1,
   },
   metaRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
     marginTop: 8,
+    flexShrink: 1,
   },
   metaItem: {
     alignItems: "center",
     flexDirection: "row",
     gap: 4,
+    flex: 1,
+    minWidth: 0,
   },
   metaValue: {
     color: COLORS.muted,
     fontSize: 13,
+    flexShrink: 1,
   },
   chevron: {
     marginTop: 4,
