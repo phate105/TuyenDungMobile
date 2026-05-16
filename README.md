@@ -62,7 +62,6 @@ npm install
 ```
 
 ## 7. Link video demo
-*(Thêm link video của bạn vào đây)*
 
 ## 8. Link online đã deploy
 - Demo Web: [https://vietjob-mobile-web.vercel.app/](https://vietjob-mobile-web.vercel.app/)
