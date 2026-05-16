@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Font from "expo-font";
 import {
@@ -31,7 +31,6 @@ const setCustomText = () => {
   }
 };
 setCustomText();
-
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);
@@ -101,7 +100,7 @@ export default function App() {
     );
   }
 
-  return (
+  const appContent = (
     <SafeAreaProvider>
       <AppNavigator
         user={currentUser}
@@ -111,6 +110,18 @@ export default function App() {
       <StatusBar style="dark" />
     </SafeAreaProvider>
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webOuterContainer}>
+        <View style={styles.webInnerContainer}>
+          {appContent}
+        </View>
+      </View>
+    );
+  }
+
+  return appContent;
 }
 
 const styles = StyleSheet.create({
@@ -129,5 +140,23 @@ const styles = StyleSheet.create({
   },
   error: {
     color: COLORS.danger,
+  },
+  webOuterContainer: {
+    flex: 1,
+    backgroundColor: '#d1d5db', 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webInnerContainer: {
+    width: '100%',
+    maxWidth: 480,
+    flex: 1,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+    overflow: 'hidden',
   },
 });
