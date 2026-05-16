@@ -344,18 +344,15 @@ function SectionBlock({ title, lines }) {
 
 function buildJobDetailSections(job) {
   return [
-    ...parseDetailSections(job?.description, "Mô tả công việc"),
-    ...parseDetailSections(job?.requirements, "Yêu cầu ứng viên"),
+    ...extractDetailSections(job?.description, "M\u00F4 t\u1EA3 c\u00F4ng vi\u1EC7c"),
+    ...extractDetailSections(job?.requirements, "Y\u00EAu c\u1EA7u \u1EE9ng vi\u00EAn"),
   ];
 }
 
-function parseDetailSections(content, fallbackTitle) {
-  const rawLines = String(content || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+function extractDetailSections(content, fallbackTitle) {
+  const rawContent = String(content || "").trim();
 
-  if (!rawLines.length) {
+  if (!rawContent) {
     return [
       {
         title: fallbackTitle,
@@ -364,7 +361,36 @@ function parseDetailSections(content, fallbackTitle) {
     ];
   }
 
-  const normalizedFallbackTitle = normalizeSectionTitle(fallbackTitle);
+  const lineBasedSections = parseSectionLines(rawContent, fallbackTitle);
+  if (lineBasedSections.length > 1) {
+    return lineBasedSections;
+  }
+
+  const flatSections = parseSectionFlatText(rawContent);
+  if (flatSections.length > 0) {
+    return flatSections;
+  }
+
+  return [
+    {
+      title: fallbackTitle,
+      lines: splitIntoDetailLines(rawContent),
+    },
+  ];
+}
+
+function parseSectionLines(content, fallbackTitle) {
+  const rawLines = content
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!rawLines.length) {
+    return [];
+  }
+
   const sections = [];
   let currentSection = { title: fallbackTitle, lines: [] };
   sections.push(currentSection);
@@ -373,7 +399,7 @@ function parseDetailSections(content, fallbackTitle) {
     if (line.endsWith(":")) {
       const heading = line.replace(/:$/, "").trim();
 
-      if (normalizeSectionTitle(heading) === normalizedFallbackTitle && currentSection.lines.length === 0) {
+      if (normalizeSectionTitle(heading) === normalizeSectionTitle(fallbackTitle) && currentSection.lines.length === 0) {
         return;
       }
 
@@ -396,21 +422,96 @@ function parseDetailSections(content, fallbackTitle) {
     });
   });
 
-  return sections
-    .filter((section) => section.lines.length > 0)
-    .map((section) => ({
-      ...section,
-      title: section.title || fallbackTitle,
+  return sections.filter((section) => section.lines.length > 0);
+}
+
+function parseSectionFlatText(content) {
+  const headings = [
+    "M\u00F4 t\u1EA3 c\u00F4ng vi\u1EC7c",
+    "Quy\u1EC1n l\u1EE3i",
+    "\u0110\u1ECBa \u0111i\u1EC3m l\u00E0m vi\u1EC7c",
+    "Th\u1EDDi gian l\u00E0m vi\u1EC7c",
+    "H\u1EA1n n\u1ED9p h\u1ED3 s\u01A1",
+    "Th\u00F4ng tin th\u00EAm",
+    "Y\u00EAu c\u1EA7u \u1EE9ng vi\u00EAn",
+  ];
+
+  const normalized = String(content || "")
+    .replace(/\r\n/g, " ")
+    .replace(/\r/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  const markerPattern = "(" + headings.map((heading) => escapeRegex(heading)).join("|") + ")\\s*:";
+  const markerRegex = new RegExp(markerPattern, "gi");
+  const matches = [...normalized.matchAll(markerRegex)];
+
+  if (!matches.length) {
+    return [];
+  }
+
+  const sections = [];
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const heading = match[1];
+    const startIndex = match.index + match[0].length;
+    const endIndex = index < matches.length - 1 ? matches[index + 1].index : normalized.length;
+    const chunk = normalized.slice(startIndex, endIndex).trim();
+
+    if (!chunk) {
+      continue;
+    }
+
+    const parts = chunk.split(/\s-\s+/).map((line) => line.trim()).filter(Boolean);
+    const hasBullets = parts.length > 1;
+    const lines = (hasBullets ? parts : [chunk]).map((line) => ({
+      text: line.replace(/\s+/g, " ").trim(),
+      type: hasBullets ? "bullet" : "text",
     }));
+
+    sections.push({
+      title: heading,
+      lines,
+    });
+  }
+
+  return sections;
+}
+
+function splitIntoDetailLines(value) {
+  return String(value || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (/^[-\u2022]\s*/.test(line)) {
+        return {
+          text: line.replace(/^[-\u2022]\s*/, "").trim(),
+          type: "bullet",
+        };
+      }
+
+      return {
+        text: line,
+        type: "text",
+      };
+    });
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeSectionTitle(value) {
-  return String(value || "")
-    .trim()
-    .replace(/:$/, "")
-    .toLowerCase();
+  return String(value || "").trim().replace(/:$/, "").toLowerCase();
 }
-
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: COLORS.surface,

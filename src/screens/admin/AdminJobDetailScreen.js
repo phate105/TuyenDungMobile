@@ -353,8 +353,9 @@ function SectionBlock({ title, content }) {
 
 function formatDetailLines(content, title) {
   const skipHeading = title.toLowerCase();
+  const normalizedContent = normalizeDetailContent(content);
 
-  return String(content)
+  return normalizedContent
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
@@ -377,6 +378,16 @@ function formatDetailLines(content, title) {
       return { text: line, type: "text" };
     })
     .filter(Boolean);
+}
+
+function normalizeDetailContent(content) {
+  return String(content || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\s*(Mô tả công việc|Yêu cầu ứng viên|Quyền lợi|Địa điểm làm việc|Thời gian làm việc|Hạn nộp hồ sơ|Thông tin thêm)\s*:/g, "\n$1:")
+    .replace(/:\s*-\s+/g, ":\n- ")
+    .replace(/\.\s*-\s+/g, ".\n- ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 const styles = StyleSheet.create({

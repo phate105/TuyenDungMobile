@@ -25,25 +25,6 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
-const QUICK_LOGIN_ACCOUNTS = [
-  ...DEMO_ACCOUNTS,
-  {
-    email: "recruitment@fptsoftware.com",
-    label: "FPT",
-    password: "123456",
-  },
-  {
-    email: "careers@momo.vn",
-    label: "MoMo",
-    password: "123456",
-  },
-  {
-    email: "careers.vn@shopee.com",
-    label: "Shopee",
-    password: "123456",
-  },
-];
-
 const COPY = {
   demoAccount: "Vào nhanh",
   demoLoading: "Đang vào",
@@ -160,7 +141,7 @@ export default function LoginScreen({ navigation, onAuthenticated }) {
         <View style={styles.demoSection}>
           <Text style={styles.demoTitle}>{COPY.demoAccount}</Text>
           <View style={styles.demoRow}>
-            {QUICK_LOGIN_ACCOUNTS.map((account) => (
+            {DEMO_ACCOUNTS.map((account) => (
               <Pressable
                 disabled={Boolean(demoLoadingEmail)}
                 key={account.email}

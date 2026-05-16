@@ -31,7 +31,7 @@ const jobSelectQuery = `
     c.company_address,
     c.website,
     c.company_size,
-    c.logo_path,
+    COALESCE(c.avatar_uri, c.logo_path) AS logo_path,
     cat.name AS category_name,
     loc.name AS location_name
   FROM jobs j
@@ -54,7 +54,7 @@ const applicationSelectQuery = `
     j.salary,
     j.work_type,
     c.company_name,
-    c.logo_path,
+    COALESCE(c.avatar_uri, c.logo_path) AS logo_path,
     cat.name AS category_name,
     loc.name AS location_name,
     u.full_name,
@@ -212,7 +212,7 @@ export async function getUsersByRole(role, { limit = 20, offset = 0 } = {}) {
         u.created_at,
         u.updated_at,
         cp.company_name,
-        cp.logo_path
+        COALESCE(cp.avatar_uri, cp.logo_path) AS logo_path
       FROM users u
       LEFT JOIN company_profiles cp ON cp.user_id = u.id
       WHERE u.role = ?
@@ -247,7 +247,7 @@ export async function getUserById(userId) {
         u.created_at,
         u.updated_at,
         cp.company_name,
-        cp.logo_path
+        COALESCE(cp.avatar_uri, cp.logo_path) AS logo_path
       FROM users u
       LEFT JOIN company_profiles cp ON cp.user_id = u.id
       WHERE u.id = ? AND u.role IN (?, ?)
@@ -467,7 +467,14 @@ function normalizeText(value) {
     result = next;
   }
 
-  return result.replace(/\s+/g, " ").trim();
+  return result
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function decodeMojibake(value) {
