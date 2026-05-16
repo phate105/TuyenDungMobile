@@ -62,6 +62,7 @@ npm install
 ```
 
 ## 7. Link video demo
+[Video demo](https://drive.google.com/drive/folders/1GffX2xDrK1WPfchC5pn60OK1F0i7efoe?usp=sharing)
 
 ## 8. Link online đã deploy
 - Demo Web: [https://vietjob-mobile-web.vercel.app/](https://vietjob-mobile-web.vercel.app/)
