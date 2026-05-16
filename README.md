@@ -61,7 +61,13 @@ src/
 npm install
 ```
 
-## 7. Hướng dẫn chạy project
+## 7. Link video demo
+*(Thêm link video của bạn vào đây)*
+
+## 8. Link online đã deploy
+- Demo Web: [https://vietjob-mobile-web.vercel.app/](https://vietjob-mobile-web.vercel.app/)
+
+## 9. Hướng dẫn chạy project
 ### Chạy trên máy 
 ```bash
 npx expo start -c
@@ -71,7 +77,7 @@ npx expo start -c
 1. Mở Expo Go trên điện thoại
 2. Quét QR từ terminal hoặc Expo Dev Tools
 
-## 8. Tài khoản demo
+## 10. Tài khoản demo
 ### Ứng viên
 - Email: `candidate@vietjob.local`
 - Mật khẩu: `candidate123`
@@ -84,7 +90,7 @@ npx expo start -c
 - Email: `admin@vietjob.local`
 - Mật khẩu: `admin123`
 
-## 9. Hình ảnh minh họa hệ thống
+## 11. Hình ảnh minh họa hệ thống
 
 <p align="center">
   <img src="assets/imgDemo/z7832161214162_3ea195c99500be9719e329a128e1f700.jpg" width="200" />
@@ -105,8 +111,3 @@ npx expo start -c
   <img src="assets/imgDemo/z7832161441296_469ae03e52d5f5f4bae4e156c83f30ef.jpg" width="200" />
   <img src="assets/imgDemo/z7832161441648_1a5e512b60fe84a8944431b7f53e0794.jpg" width="200" />
 </p>
-
-## 10. Link video demo
-
-
-## 11. Link online đã deploy
